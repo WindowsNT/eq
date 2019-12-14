@@ -57,6 +57,8 @@ namespace EQ
 	{
 	public:
 		HWND hParent;
+		bool NextRunBuild = false;
+		std::recursive_mutex mu;
 
 		void SetWindow(HWND hh)
 		{
@@ -546,7 +548,7 @@ namespace EQ
 	{
 		if (!IsWindow(hC))
 			return;
-		p->Build(SR);
+		p->NextRunBuild = true;
 		InvalidateRect(hC, 0, TRUE);
 		UpdateWindow(hC);
 	}
@@ -806,6 +808,11 @@ namespace EQ
 
 		int rad = 5;
 
+		PARAMETRICEQ(const PARAMETRICEQ& p)
+		{
+			filters = p.filters;
+		}
+
 		PARAMETRICEQ() : EQ()
 		{
 			filters.resize(2);
@@ -984,6 +991,7 @@ namespace EQ
 
 		virtual void Paint(ID2D1Factory* fact, ID2D1RenderTarget* r, RECT rrc)
 		{
+			std::lock_guard<std::recursive_mutex> lg(mu);
 			wchar_t t[1000] = { 0 };
 			CreateBrushes(r);
 			rc = FromR(rrc);
@@ -1620,6 +1628,7 @@ namespace EQ
 
 		virtual void Build(int SR)
 		{
+			std::lock_guard<std::recursive_mutex> lg(mu);
 			sr = SR;
 			for (auto& b : filters)
 				b.Build(SR);
@@ -1690,10 +1699,11 @@ namespace EQ
 				return;
 			for (auto& b : filters)
 			{
-				if (b.st.b0 == 0 && b.st.b1 == 0 && b.st.b2 == 0)
+				if (NextRunBuild || (b.st.b0 == 0 && b.st.b1 == 0 && b.st.b2 == 0))
 					b.Build(SR);
 			}
-		
+			NextRunBuild = 0;
+
 			//auto nns = ons;
 			inb.resize(ons);
 			outb.resize(ons);
@@ -1836,6 +1846,15 @@ namespace EQ
 	public:
 		BAND* ResizingBand = 0;
 		vector<BAND> bands;
+
+		GRAPHICEQ(const GRAPHICEQ& p)
+		{
+			bands = p.bands;
+		}
+
+		GRAPHICEQ() : EQ()
+		{
+		}
 
 		virtual void Ser(XML3::XMLElement& e)
 		{
@@ -1991,7 +2010,7 @@ namespace EQ
 
 			bool Left = ((GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0);
 			if (Left)
-				LeftDown(ww, ll);
+				LeftDown(ww, ll);tp2
 				*/
 //			Redraw();
 		}
@@ -2254,8 +2273,9 @@ namespace EQ
 		}
 
 
-		void Paint(ID2D1Factory* fact, ID2D1RenderTarget* r, RECT rrc)
+		virtual void Paint(ID2D1Factory* fact, ID2D1RenderTarget* r, RECT rrc)
 		{
+			std::lock_guard<std::recursive_mutex> lg(mu);
 			wchar_t t[1000] = { 0 };
 			CreateBrushes(r);
 			rc = FromR(rrc);
@@ -2426,6 +2446,7 @@ namespace EQ
 
 		virtual void Build(int SR)
 		{
+			std::lock_guard<std::recursive_mutex> lg(mu);
 			// BW = f0/Q; - f0 center frequency
 			for (auto& b : bands)
 			{
@@ -2464,8 +2485,10 @@ namespace EQ
 			if (UseBiquad)
 			{
 //				auto nns = ons;
-				if (bands[0].state.b0 == 0 && bands[0].state.b1 == 0 && bands[0].state.b2 == 0)
+
+				if (NextRunBuild || (bands[0].state.b0 == 0 && bands[0].state.b1 == 0 && bands[0].state.b2 == 0))
 					Build(SR);
+				NextRunBuild = false;
 				inb.resize(ons);
 				outb.resize(ons);
 
