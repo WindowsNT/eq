@@ -7,40 +7,31 @@
     <ClCompile Include="stdafx.cpp">
       <Filter>Code</Filter>
     </ClCompile>
-    <ClCompile Include="..\sndfilter-master\src\biquad.c">
+    <ClCompile Include="biquad.c">
       <Filter>Code</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <Filter Include="Resources">
-      <UniqueIdentifier>{c2cab89e-12fd-4a95-8364-c5b9b3cb8b00}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Code">
       <UniqueIdentifier>{f39967f6-f5d7-4585-8037-d7a7d3d33408}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Other Files">
-      <UniqueIdentifier>{435b2f8d-e902-4b8e-b685-a57a9f790d9c}</UniqueIdentifier>
-    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="main.rc">
-      <Filter>Resources</Filter>
-    </ResourceCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="rdbg.rde" />
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="app.ico">
-      <Filter>Resources</Filter>
-    </Image>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="stdafx.h">
-      <Filter>Other Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\DSPFilters\DSPFilters\source\alldspfilters.hpp">
       <Filter>Code</Filter>
     </ClInclude>
+    <ClInclude Include="stdafx.h">
+      <Filter>Code</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="main.rc">
+      <Filter>Code</Filter>
+    </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Readme.md">
+      <Filter>Code</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -1,7 +1,7 @@
 //
 
 extern "C" {
-#include "..\\sndfilter-master\\src\\\biquad.h"
+#include "biquad.h"
 }
 
 #ifdef TURBO_PLAY
@@ -13,7 +13,7 @@ extern "C" {
 #include "..\\DSPFilters\\DSPFilters\\include\\DspFilters\\ChebyshevI.h"
 #include "..\\DSPFilters\\DSPFilters\\include\\DspFilters\\Butterworth.h"
 #else
-#include "..\\DSPFilters\\DSPFilters\\source\\alldspfilters.hpp"
+#include "alldspfilters.hpp"
 #endif
 
 #pragma warning(disable:4100)

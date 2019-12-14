@@ -2,13 +2,12 @@
 
 HWND MainWindow = 0;
 HINSTANCE hAppInstance = 0;
-HICON hIcon1 = 0;
 
-#include "f:\\TOOLS\\XML\\x3\\x3\\xml3all.h"
+#include "xml\\xml3all.h"
 #include "eq.hpp"
 
 // ----
-const TCHAR* ttitle = _T("EQ App");
+const TCHAR* ttitle = _T("Equalizer Design");
 // ----
 
 
@@ -97,14 +96,14 @@ void ReadMP3Header(FILE* fp, int& sr, int& nCh)
 
 }
 
-EQ::PARAMETRICEQ prx;
+EQ::PARAMETRICEQ prx1;
 EQ::GRAPHICEQ prx2;
+EQ::EQ* prx = 0;
 
-
-#include "f:\\tools\\uwl\\rw\\rw.hpp"
+#include ".\\mt\\rw.hpp"
 bool Ending = true;
 using namespace std;
-#include "..\\VSTX\\test\\wave.h"
+#include "wave.h"
 #define MP3_BLOCK_SIZE 522
 CONV c;
 std::shared_ptr<WOUT> wout;
@@ -193,7 +192,7 @@ void StartMP3(std::wstring fi)
 	if (true)
 	{
 		std::lock_guard<std::recursive_mutex> lg(mu);
-		prx.Build(SR);
+		prx->Build(SR);
 	
 	}
 	for (;;)
@@ -230,7 +229,7 @@ void StartMP3(std::wstring fi)
 			if (true)
 			{
 				std::lock_guard<std::recursive_mutex> lg(mu);
-				prx.Run(SR, d2.data(), fsz, de.data());
+				prx->Run(SR, d2.data(), fsz, de.data());
 			}
 
 
@@ -308,11 +307,11 @@ LRESULT CALLBACK Main_DP(HWND hh, UINT mm, WPARAM ww, LPARAM ll)
 		case WM_CREATE:
 		{
 			MainWindow = hh;
-			prx.SetWindow(hh);
+			prx->SetWindow(hh);
 			cxt = std::make_shared<M>();
-			prx.AddCallback(cxt);
+			prx->AddCallback(cxt);
 			XML3::XML x("eq.xml");
-			prx.Unser(x.GetRootElement());
+			prx->Unser(x.GetRootElement());
 
 
 
@@ -335,7 +334,7 @@ LRESULT CALLBACK Main_DP(HWND hh, UINT mm, WPARAM ww, LPARAM ll)
 		case WM_CLOSE:
 		{
 			XML3::XML x("eq.xml");
-			prx.Ser(x.GetRootElement());
+			prx->Ser(x.GetRootElement());
 			x.Save();
 			DestroyWindow(hh);
 			return 0;
@@ -344,7 +343,7 @@ LRESULT CALLBACK Main_DP(HWND hh, UINT mm, WPARAM ww, LPARAM ll)
 		case WM_KEYDOWN:
 		case WM_SYSKEYDOWN:
 		{
-			prx.KeyDown(ww, ll);
+			prx->KeyDown(ww, ll);
 			if (ww == VK_SPACE)
 			{
 				if (!Ending)
@@ -355,11 +354,7 @@ LRESULT CALLBACK Main_DP(HWND hh, UINT mm, WPARAM ww, LPARAM ll)
 				{
 					auto thr = []()
 					{
-#ifdef _DEBUG
-						wstring fi = L"G:\\mp3\\- 09- James Blunt - You Are Beautiful(1).mp3";
-#else
 						auto fi = OpenSingleFile(0, L"*.mp3", 0, 0, 0, 0);
-#endif
 						StartMP3(fi.c_str());
 					};
 					std::thread t(thr);
@@ -371,32 +366,32 @@ LRESULT CALLBACK Main_DP(HWND hh, UINT mm, WPARAM ww, LPARAM ll)
 		}
 		case WM_MOUSEMOVE:
 		{
-			prx.MouseMove(ww, ll);
+			prx->MouseMove(ww, ll);
 			return 0;
 		}
-case WM_MOUSEWHEEL:
-{
-	prx.MouseWheel(ww, ll);
-	return 0;
-}
-case WM_LBUTTONDOWN:
+		case WM_MOUSEWHEEL:
 		{
-			prx.LeftDown(ww, ll);
+			prx->MouseWheel(ww, ll);
+			return 0;
+		}
+		case WM_LBUTTONDOWN:
+		{
+			prx->LeftDown(ww, ll);
 			return 0;
 		}
 		case WM_RBUTTONDOWN:
 		{
-			prx.RightDown(ww, ll);
+			prx->RightDown(ww, ll);
 			return 0;
 		}
 		case WM_LBUTTONUP:
 		{
-			prx.LeftUp(ww, ll);
+			prx->LeftUp(ww, ll);
 			return 0;
 		}
 		case WM_LBUTTONDBLCLK:
 		{
-			prx.LeftDoubleClick(ww, ll);
+			prx->LeftDoubleClick(ww, ll);
 			return 0;
 		}
 
@@ -426,9 +421,9 @@ case WM_LBUTTONDOWN:
 			if (true)
 			{
 				std::lock_guard<std::recursive_mutex> lg(mu);
-				prx.Build(SR);
+				prx->Build(SR);
 			}
-			prx.Paint(fa,d, rc);
+			prx->Paint(fa,d, rc);
 			d->EndDraw();
 			EndPaint(hh, &ps);
 			return 0;
@@ -469,7 +464,6 @@ int __stdcall WinMain(HINSTANCE h, HINSTANCE, LPSTR, int)
 	icex.dwSize = sizeof(icex);
 	InitCommonControlsEx(&icex);
 	InitCommonControls();
-	hIcon1 = LoadIcon(0, IDI_APPLICATION);
 	hAppInstance = h;
 
 	WNDCLASSEX wClass = { 0 };
@@ -478,12 +472,64 @@ int __stdcall WinMain(HINSTANCE h, HINSTANCE, LPSTR, int)
 	wClass.style = CS_DBLCLKS | CS_HREDRAW | CS_VREDRAW | CS_PARENTDC;
 	wClass.lpfnWndProc = (WNDPROC)Main_DP;
 	wClass.hInstance = h;
-	wClass.hIcon = hIcon1;
+	wClass.hIcon = 0;
 	wClass.hCursor = LoadCursor(0, IDC_ARROW);
 	wClass.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
 	wClass.lpszClassName = _T("CLASS");
-	wClass.hIconSm = hIcon1;
+	wClass.hIconSm = 0;
 	RegisterClassEx(&wClass);
+
+
+	TASKDIALOGCONFIG tc = { 0 };
+	tc.cbSize = sizeof(tc);
+	tc.hwndParent = 0;
+	tc.pszWindowTitle = ttitle;
+	tc.pszMainIcon = TD_SHIELD_ICON;
+	tc.hMainIcon = 0;
+	tc.dwFlags = TDF_ENABLE_HYPERLINKS | TDF_CAN_BE_MINIMIZED | TDF_USE_COMMAND_LINKS;
+	tc.pszMainInstruction = ttitle;
+	tc.pszContent = L"Select equalizer type";
+	tc.dwCommonButtons = 0;
+	TASKDIALOG_BUTTON b2[6] = { 0 };
+	b2[0].pszButtonText = L"Graphic";
+	b2[1].pszButtonText = L"Parametric";
+	b2[2].pszButtonText = L"Cancel";
+	b2[0].nButtonID = 101;
+	b2[1].nButtonID = 102;
+	b2[2].nButtonID = 103;
+
+	tc.pButtons = b2;
+	tc.cButtons = 3;
+	tc.lpCallbackData = 0;
+
+
+	tc.pfCallback = [](_In_ HWND hwnd, _In_ UINT msg, _In_ WPARAM wParam, _In_ LPARAM lpx, _In_ LONG_PTR lp) ->HRESULT
+	{
+		if (msg == TDN_HYPERLINK_CLICKED)
+		{
+			return S_FALSE;
+		}
+		if (msg == TDN_CREATED)
+		{
+		}
+		if (msg == TDN_BUTTON_CLICKED)
+		{
+			return S_OK;
+		}
+		return S_OK;
+	};
+
+
+	int rv = 0;
+	BOOL ch = 0;
+	TaskDialogIndirect(&tc, &rv, 0, &ch);
+	if (rv == 101)
+		prx = &prx2;
+	else
+	if (rv == 102)
+		prx = &prx1;
+	else
+		return 0;
 
 	MainWindow = CreateWindowEx(0,
 		_T("CLASS"),
