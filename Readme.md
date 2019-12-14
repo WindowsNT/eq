@@ -3,6 +3,11 @@
 CodeProject article: 
 
 
+![TT](https://www.codeproject.com/KB/Articles/5253995/Working/eq.jpg)
+
+![Test](https://www.codeproject.com/KB/Articles/5253995/Working/geq.jpg)
+
+
 Uses:
 
 * My XML for serialization: https://github.com/WindowsNT/xml
@@ -53,8 +58,4 @@ public:
 
 
 ```
-![TT](https://www.codeproject.com/KB/miscctrl/1279856/1.jpg)
-
-![Test](https://www.codeproject.com/KB/miscctrl/1279856/2.jpg)
-
 
