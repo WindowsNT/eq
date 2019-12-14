@@ -1,11 +1,11 @@
 # An equalizer design for Windows with Direct2D
 
-CodeProject article: 
+CodeProject article: https://www.codeproject.com/Articles/5253995/The-Equalizer-Design-Graphic-and-Parametric-Win32
 
 
-![TT](https://www.codeproject.com/KB/Articles/5253995/Working/eq.jpg)
+![PEQ](https://www.codeproject.com/KB/miscctrl/5253995/eq.jpg)
 
-![Test](https://www.codeproject.com/KB/Articles/5253995/Working/geq.jpg)
+![GEQ](https://www.codeproject.com/KB/miscctrl/5253995/geq.jpg)
 
 
 Uses:
