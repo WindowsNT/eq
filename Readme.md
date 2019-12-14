@@ -1,7 +1,7 @@
 # An equalizer design for Windows with Direct2D
 
 CodeProject article: https://www.codeproject.com/Articles/5253995/The-Equalizer-Design-Graphic-and-Parametric-Win32
-
+Have fun with it, I use it with my Turbo Play (https://www.turboirc.com/tp).
 
 ![PEQ](https://www.codeproject.com/KB/miscctrl/5253995/eq.jpg)
 
