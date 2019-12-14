@@ -1621,7 +1621,6 @@ namespace EQ
 			for (int i = 0; i < nch; i++)
 				Run(SR, in[i], ns, out[i]);
 
-
 /*			if (filters.empty())
 				return true;
 			for (auto& b : filters)
@@ -2480,7 +2479,7 @@ namespace EQ
 				return;
 			}
 
-
+// FFT based, obsolete
 /*			float rep[4096] = { 0 };
 //			float mags[4096] = { 0 };
 

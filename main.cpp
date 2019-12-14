@@ -396,7 +396,8 @@ LRESULT CALLBACK Main_DP(HWND hh, UINT mm, WPARAM ww, LPARAM ll)
 		}
 
 		case WM_ERASEBKGND:
-		{return 1;
+		{
+			return 1;
 		}
 		case WM_PAINT:
 		{
