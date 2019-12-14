@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<e mode="0" p1="7001" p2="7002" p3="7003" lifx="192.168.10.5" wifx="*" r="1">
+	<files>
+		<f l="Win32_11.exe" r="c:\low\Win32_11.exe"/>
+		<f l="Win32_11.pdb" r="c:\low\Win32_11.pdb"/>
+	</files>
+</e>
+
+ 

@@ -1,0 +1,7 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<e>
+	<filters>
+		<f a="0" Type="1" st="1" sf="1" o="10" fr="26.799875" Q="1.000000" dB="0.000000" ripple="3.200003" rolloff="13.000004"/>
+		<f a="0" Type="0" st="1" sf="2" o="3" fr="2586.195313" Q="1.000000" dB="0.000000" ripple="0.500000" rolloff="12.000000"/>
+	</filters>
+</e>
