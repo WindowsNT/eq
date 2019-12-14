@@ -43,14 +43,9 @@ namespace EQ
 	{
 	public:
 		HWND hC = 0;
+		int SR;
 
-		virtual void RedrawRequest(EQ* p)
-		{
-			if (!IsWindow(hC))
-				return;
-			InvalidateRect(hC, 0, TRUE);
-			UpdateWindow(hC);
-		}
+		virtual void RedrawRequest(EQ* p);
 		virtual void Dirty(EQ* q,bool)
 		{
 
@@ -358,11 +353,12 @@ namespace EQ
 			return a;
 		}
 
-		void ShowInDialog(HWND hh)
+		void ShowInDialog(HWND hh,int SR)
 		{
 			struct Z
 			{
 				EQ* c = 0;
+				int SR = 48000;
 				CComPtr<ID2D1HwndRenderTarget> d;
 				CComPtr<ID2D1Factory> fa;
 			};
@@ -383,10 +379,12 @@ namespace EQ
 						SetWindowLongPtr(hh, GWLP_USERDATA, ll);
 						z = (Z*)GetWindowLongPtr(hh, GWLP_USERDATA);
 						c = z->c;
+						
 
 						c->SetWindow(hh);
 						auto mmd = std::make_shared<MMCB>();
 						mmd->hC = hh;
+						mmd->SR = z->SR;
 						c->AddCallback(mmd);
 						return true;
 					}
@@ -482,6 +480,7 @@ namespace EQ
 			};
 			Z z;
 			z.c = this;
+			z.SR = SR;
 			DialogBoxIndirectParam(0, (LPCDLGTEMPLATE)res, hh ? hh : hParent, dp, (LPARAM)& z);
 			DestroyBrushes();
 		}
@@ -542,6 +541,16 @@ namespace EQ
 		}
 
 	};
+
+	inline void MMCB::RedrawRequest(EQ* p)
+	{
+		if (!IsWindow(hC))
+			return;
+		p->Build(SR);
+		InvalidateRect(hC, 0, TRUE);
+		UpdateWindow(hC);
+	}
+
 
 	class BAND
 	{
@@ -1191,18 +1200,18 @@ namespace EQ
 					{
 						if (filters[h].SpecialFilter != 0 && filters[h].SpecialType != 0)
 						{
-							AppendMenu(hPr, MF_STRING, 251, L"Order...\tUp/Down");
-							AppendMenu(hPr, MF_STRING, 252, L"Ripple...\tCtrl+Up/Down");
+							AppendMenu(hPr, MF_STRING, 251, L"Order...\t-/+");
+							AppendMenu(hPr, MF_STRING, 252, L"Ripple...\tCtrl -/+");
 							if (filters[h].SpecialType == 4)
-								AppendMenu(hPr, MF_STRING, 253, L"Roll off...\tAlt+Up/Down");
+								AppendMenu(hPr, MF_STRING, 253, L"Roll off...\tAlt -/+");
 						}
 
 						// Order, Ripple, ...
 					}
 					if (filters[h].Type == 4 || filters[h].Type == 5)
-						AppendMenu(hPr, MF_STRING, 203, L"Q...");
+						AppendMenu(hPr, MF_STRING, 203, L"Q...\tMouse wheel");
 					AppendMenu(hPr, MF_SEPARATOR, 0, L"");
-					AppendMenu(hPr, MF_STRING, 207, L"Active");
+					AppendMenu(hPr, MF_STRING, 207, L"Active\tA");
 					if (filters[h].A)
 						CheckMenuItem(hPr, 207, MF_CHECKED);
 				}
@@ -1371,6 +1380,13 @@ namespace EQ
 			bool Control = ((GetAsyncKeyState(VK_CONTROL) & 0x8000) != 0);
 			bool Alt = ((GetAsyncKeyState(VK_MENU) & 0x8000) != 0);
 
+			bool Down = false;
+			bool Up = false;
+			if (ww == VK_DOWN || ww == VK_SUBTRACT || ww == '-')
+				Down = true;
+			if (ww == VK_UP || ww == VK_ADD || ww == '=')
+				Up = true;
+
 			// Change Parameters
 			for (auto& f : filters)
 			{
@@ -1383,20 +1399,20 @@ namespace EQ
 						Redraw();
 					}
 
-					if (ww == VK_DOWN && !Shift && !Control && !Alt) // Change Order
+					if (Down && !Shift && !Control && !Alt) // Change Order
 					{
 						if (f.Order > 1)
 							f.Order--;
 						f.Build(sr);
 						Redraw();
 					}
-					if (ww == VK_UP && !Shift && !Control && !Alt) // Change Order
+					if (Up && !Shift && !Control && !Alt) // Change Order
 					{
 						f.Order++;
 						f.Build(sr);
 						Redraw();
 					}
-					if (ww == VK_DOWN && Control && !Alt) // Change Ripple
+					if (Down && Control && !Alt) // Change Ripple
 					{
 						if (Shift)
 						{
@@ -1412,7 +1428,7 @@ namespace EQ
 						f.Build(sr);
 						Redraw();
 					}
-					if (ww == VK_UP && Control && !Alt) // Change ripple
+					if (Up && Control && !Alt) // Change ripple
 					{
 						if (Shift)
 						{
@@ -1425,7 +1441,7 @@ namespace EQ
 						f.Build(sr);
 						Redraw();
 					}
-					if (ww == VK_DOWN && !Control && Alt) // Change Rolloff
+					if (Down && !Control && Alt) // Change Rolloff
 					{
 						if (Shift)
 						{
@@ -1441,7 +1457,7 @@ namespace EQ
 						f.Build(sr);
 						Redraw();
 					}
-					if (ww == VK_UP && !Control && Alt) // Change rolloff
+					if (Up && !Control && Alt) // Change rolloff
 					{
 						if (Shift)
 						{
@@ -1993,14 +2009,14 @@ namespace EQ
 			AppendMenu(hPr, MF_STRING | MF_SEPARATOR, 0, L"");
 			//wchar_t t[1000] = { 0 };
 
-			HMENU hPr2 = CreatePopupMenu();
-			AppendMenu(hPr, MF_STRING | MF_POPUP, (UINT_PTR)hPr2, L"FFT Size");
+//			HMENU hPr2 = CreatePopupMenu();
+/*			AppendMenu(hPr, MF_STRING | MF_POPUP, (UINT_PTR)hPr2, L"FFT Size");
 			AppendMenu(hPr2, FFTSize == 1024 ? MF_STRING | MF_CHECKED : MF_STRING, 111, L"1024");
 			AppendMenu(hPr2, FFTSize == 2048 ? MF_STRING | MF_CHECKED : MF_STRING, 112, L"2048");
 			AppendMenu(hPr2, FFTSize == 4096 ? MF_STRING | MF_CHECKED : MF_STRING, 113, L"4096");
 			AppendMenu(hPr, MF_STRING, 121, L"Post Gain...");
 			AppendMenu(hPr, MF_STRING | MF_SEPARATOR, 0, L"");
-			AppendMenu(hPr, MF_STRING, 201, L"Melody boost");
+*/			AppendMenu(hPr, MF_STRING, 201, L"Melody boost");
 			AppendMenu(hPr, MF_STRING, 202, L"Vocal boost");
 			AppendMenu(hPr, MF_STRING, 203, L"Bass lift");
 			AppendMenu(hPr, MF_STRING, 204, L"Bass cut");
