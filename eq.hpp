@@ -220,6 +220,7 @@ namespace EQ
 		bool NextRunBuild = false;
 		std::recursive_mutex mu;
 
+		int LastNumChannels = 1;
 		int LastSR = 0;
 		std::vector<float> din;
 		std::vector<float> dout;
@@ -229,6 +230,10 @@ namespace EQ
 			hParent = hh;
 		}
 
+		EQ(int NumCh = 1)
+		{
+			LastNumChannels = NumCh;
+		}
 
 		struct ASKTEXT
 		{
@@ -434,7 +439,7 @@ namespace EQ
 		virtual void Ser(XML3::XMLElement& e) = 0;
 		virtual void Unser(XML3::XMLElement& e) = 0;
 
-		virtual void Prepare(int SR) = 0;
+		virtual void Prepare(int SR,int nch) = 0;
 		virtual void Run(int SR, float* in, int ns, float* out) = 0;
 		virtual bool Run2(int SR, int nch, float** in, int ns, float** out) = 0;
 		virtual void Build(int SR) = 0;
@@ -841,8 +846,7 @@ namespace EQ
 		sf_biquad_state_st st = { 0 };
 		std::shared_ptr_debug<void> sf = 0;
 
-
-		void Build(int SR)
+		void Build(int SR,int nch)
 		{
 			sf = 0;
 			switch (Type)
@@ -859,24 +863,28 @@ namespace EQ
 				if (SpecialType == 1)
 				{
 					auto sf2 = std::make_shared_debug<ButtLP>();
+					sf2->setNumChannels(nch);
 					sf2->setup(Order, SR, fr);
 					sf = sf2;
 				}
 				if (SpecialType == 2)
 				{
 					auto sf2 = std::make_shared_debug<Che1LP>();
+					sf2->setNumChannels(nch);
 					sf2->setup(Order, SR, fr, ripple);
 					sf = sf2;
 				}
 				if (SpecialType == 3)
 				{
 					auto sf2 = std::make_shared_debug<Che2LP>();
+					sf2->setNumChannels(nch);
 					sf2->setup(Order, SR, fr, ripple);
 					sf = sf2;
 				}
 				if (SpecialType == 4)
 				{
 					auto sf2 = std::make_shared_debug<EllLP>();
+					sf2->setNumChannels(nch);
 					sf2->setup(Order, SR, fr, ripple, rolloff);
 					sf = sf2;
 				}
@@ -895,24 +903,28 @@ namespace EQ
 				if (SpecialType == 1)
 				{
 					auto sf2 = std::make_shared_debug<ButtHP>();
+					sf2->setNumChannels(nch);
 					sf2->setup(Order, SR, fr);
 					sf = sf2;
 				}
 				if (SpecialType == 2)
 				{
 					auto sf2 = std::make_shared_debug<Che1HP>();
+					sf2->setNumChannels(nch);
 					sf2->setup(Order, SR, fr, ripple);
 					sf = sf2;
 				}
 				if (SpecialType == 3)
 				{
 					auto sf2 = std::make_shared_debug<Che2HP>();
+					sf2->setNumChannels(nch);
 					sf2->setup(Order, SR, fr, ripple);
 					sf = sf2;
 				}
 				if (SpecialType == 4)
 				{
 					auto sf2 = std::make_shared_debug<EllHP>();
+					sf2->setNumChannels(nch);
 					sf2->setup(Order, SR, fr, ripple, rolloff);
 					sf = sf2;
 				}
@@ -927,18 +939,21 @@ namespace EQ
 				if (SpecialType == 6)
 				{
 					auto sf2 = std::make_shared_debug<ButtLPs>();
+					sf2->setNumChannels(nch);
 					sf2->setup(Order, SR, fr, dB);
 					sf = sf2;
 				}
 				if (SpecialType == 7)
 				{
 					auto sf2 = std::make_shared_debug<Che1LPs>();
+					sf2->setNumChannels(nch);
 					sf2->setup(Order, SR, fr, dB, ripple);
 					sf = sf2;
 				}
 				if (SpecialType == 8)
 				{
 					auto sf2 = std::make_shared_debug<Che2LPs>();
+					sf2->setNumChannels(nch);
 					sf2->setup(Order, SR, fr, dB, ripple);
 					sf = sf2;
 				}
@@ -953,18 +968,21 @@ namespace EQ
 				if (SpecialType == 6)
 				{
 					auto sf2 = std::make_shared_debug<ButtHPs>();
+					sf2->setNumChannels(nch);
 					sf2->setup(Order, SR, fr, dB);
 					sf = sf2;
 				}
 				if (SpecialType == 7)
 				{
 					auto sf2 = std::make_shared_debug<Che1HPs>();
+					sf2->setNumChannels(nch);
 					sf2->setup(Order, SR, fr, dB, ripple);
 					sf = sf2;
 				}
 				if (SpecialType == 8)
 				{
 					auto sf2 = std::make_shared_debug<Che2LPs>();
+					sf2->setNumChannels(nch);
 					sf2->setup(Order, SR, fr, dB, ripple);
 					sf = sf2;
 				}
@@ -997,9 +1015,10 @@ namespace EQ
 		PARAMETRICEQ(const PARAMETRICEQ& p)
 		{
 			filters = p.filters;
+			LastNumChannels = p.LastNumChannels;
 		}
 
-		PARAMETRICEQ() : EQ()
+		PARAMETRICEQ(int nch = 1) : EQ(1)
 		{
 			filters.resize(2);
 			filters[0].A = 0;
@@ -1615,7 +1634,7 @@ namespace EQ
 					if (ww == 'A')
 					{
 						f.A = !f.A;
-						f.Build(sr);
+						f.Build(sr,LastNumChannels);
 						Redraw();
 					}
 
@@ -1623,13 +1642,13 @@ namespace EQ
 					{
 						if (f.Order > 1)
 							f.Order--;
-						f.Build(sr);
+						f.Build(sr, LastNumChannels);
 						Redraw();
 					}
 					if (Up && !Shift && !Control && !Alt) // Change Order
 					{
 						f.Order++;
-						f.Build(sr);
+						f.Build(sr, LastNumChannels);
 						Redraw();
 					}
 					if (Down && Control && !Alt) // Change Ripple
@@ -1645,7 +1664,7 @@ namespace EQ
 								f.ripple -= 1;
 
 						}
-						f.Build(sr);
+						f.Build(sr, LastNumChannels);
 						Redraw();
 					}
 					if (Up && Control && !Alt) // Change ripple
@@ -1658,7 +1677,7 @@ namespace EQ
 						{
 							f.ripple += 1;
 						}
-						f.Build(sr);
+						f.Build(sr, LastNumChannels);
 						Redraw();
 					}
 					if (Down && !Control && Alt) // Change Rolloff
@@ -1674,7 +1693,7 @@ namespace EQ
 								f.rolloff -= 1;
 
 						}
-						f.Build(sr);
+						f.Build(sr, LastNumChannels);
 						Redraw();
 					}
 					if (Up && !Control && Alt) // Change rolloff
@@ -1689,7 +1708,7 @@ namespace EQ
 							if (f.rolloff < 17)
 								f.rolloff += 1;
 						}
-						f.Build(sr);
+						f.Build(sr, LastNumChannels);
 						Redraw();
 					}
 				}
@@ -1843,16 +1862,15 @@ namespace EQ
 			std::lock_guard<std::recursive_mutex> lg(mu);
 			sr = SR;
 			for (auto& b : filters)
-				b.Build(SR);
+				b.Build(SR,LastNumChannels);
 		}
 
-		virtual void Prepare(int SR)
+		virtual void Prepare(int SR,int nch)
 		{
+			LastNumChannels = nch;
 			Build(SR);
 		}
 
-
-		// The filters are stereo, so do it
 		virtual bool Run2(int SR, int nch, float** in, int ons, float** out)
 		{
 			LastSR = SR;
@@ -1870,7 +1888,7 @@ namespace EQ
 			for (auto& b : filters)
 			{
 				if (NextRunBuild || (b.st.b0 == 0 && b.st.b1 == 0 && b.st.b2 == 0))
-					b.Build(SR);
+					b.Build(SR, LastNumChannels);
 			}
 			NextRunBuild = 0;
 
@@ -1992,17 +2010,27 @@ namespace EQ
 
 					inb.resize(ons);
 					outb.resize(ons);
-					for (size_t i = 0; i < ons; i++)
+					for (int ich = 0; ich < nch; ich++)
 					{
-						inb[i].L = in[0][i];
-						inb[i].R = in[1][i];
-					}
+						for (size_t i = 0; i < ons; i++)
+						{
+							inb[i].L = in[ich][i];
+							if (ich == (nch - 1))
+								inb[i].R = in[ich][i];
+							else
+								inb[i].R = in[ich + 1][i];
+						}
 
-					sf_biquad_process(&b.st, (int)ons, inb.data(), outb.data());
-					for (size_t i = 0; i < ons; i++)
-					{
-						out[0][i] = outb[i].L;
-						out[1][i] = outb[i].R;
+						sf_biquad_process(&b.st, (int)ons, inb.data(), outb.data());
+	
+						for (size_t i = 0; i < ons; i++)
+						{
+							out[ich][i] = outb[i].L;
+							if (ich == (nch - 1))
+								out[ich][i] = outb[i].R;
+							else
+								out[ich + 1][i] = outb[i].R;
+						}
 					}
 				}
 			}
@@ -2024,16 +2052,16 @@ namespace EQ
 			return true;
 		}
 
-		std::vector<float> ch1;
-		std::vector<float> ch2;
-		std::vector<float> och1;
-		std::vector<float> och2;
+//		std::vector<float> ch1;
+//		std::vector<float> ch2;
+//		std::vector<float> och1;
+//		std::vector<float> och2;
 
-		float* st[2] = {};
-		float* ost[2] = {};
+//		float* st[2] = {};
+//		float* ost[2] = {};
 		virtual void Run(int SR, float* in, int ons, float* outd)
 		{
-			ch1.resize(ons);
+/*			ch1.resize(ons);
 			ch2.resize(ons);
 			och1.resize(ons);
 			och2.resize(ons);
@@ -2045,20 +2073,10 @@ namespace EQ
 			ost[1] = och2.data();
 			Run2(SR, 2, (float**)st, ons, (float**)ost);
 			memcpy(outd, och1.data(), ons * sizeof(float));
-		}
-
-		// Single channel
-
-/*		virtual void Run(int SR, float* in, int ons, float* outd)
-		{
-			//auto nns = ons;
-			inb.resize(ons);
-			outb.resize(ons);
-
-
-			return;
-		}
 */
+			// Single channel
+			Run2(SR, 1, &in, ons, &outd);
+		}
 	};
 
 	class GRAPHICEQ : public EQ
@@ -2685,8 +2703,9 @@ Redraw();
 
 		bool UseBiquad = true;
 
-		virtual void Prepare(int SR)
+		virtual void Prepare(int SR,int nch)
 		{
+			LastNumChannels = nch;
 			if (UseBiquad)
 				Build(SR);
 		}

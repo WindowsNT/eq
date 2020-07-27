@@ -138,6 +138,9 @@ void StartMP3(std::wstring fi)
 	//		SR = 44100;
 
 
+	prx1.LastNumChannels = nCh;
+	prx2.LastNumChannels = nCh;
+
 	w.cbSize = MPEGLAYER3_WFX_EXTRA_BYTES;
 	w.wFormatTag = WAVE_FORMAT_MPEGLAYER3;
 	w.nChannels = (WORD)nCh;
@@ -233,7 +236,38 @@ void StartMP3(std::wstring fi)
 				if (nCh == 1)
 					prx->Run(SR, d2.data(), fsz, de.data());
 				else
-					prx->Run(SR, d2.data(), fsz, de.data()); //*
+				{
+					// Has interleaved data
+					int bT = fsz / nCh;
+					std::vector<float*> bin(nCh);
+					std::vector<float*> bout(nCh);
+					std::vector<std::vector<float>> xin(nCh);
+					std::vector<std::vector<float>> xout(nCh);
+					for (int i = 0; i < nCh; i++)
+					{
+						xin[i].resize(bT);
+						bin[i] = xin[i].data();
+						xout[i].resize(bT);
+						bout[i] = xout[i].data();
+					}
+					int n = 0;
+					for (int i = 0; i < bT; i++)
+					{
+						for (int ich = 0; ich < nCh; ich++)
+						{
+							xin[ich][i] = d2[n++];
+						}
+					}
+					prx->Run2(SR, nCh,bin.data(), bT, bout.data()); //*
+					n = 0;
+					for (int i = 0; i < bT; i++)
+					{
+						for (int ich = 0; ich < nCh; ich++)
+						{
+							de[n++] = xout[ich][i];
+						}
+					}
+				}
 			}
 
 

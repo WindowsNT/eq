@@ -1079,12 +1079,19 @@ namespace Dsp {
     //------------------------------------------------------------------------------
 
     // Holds an array of states suitable for multi-channel processing
-    template <int Channels, class StateType>
+    template <int ChannelsX, class StateType>
     class ChannelsState
     {
+        int Channels = 1;
     public:
         ChannelsState()
         {
+            SetChannelNumber(ChannelsX);
+        }
+        void SetChannelNumber(int nch)
+        {
+            Channels = nch;
+            m_state.resize(Channels);
         }
 
         const int getNumChannels() const
@@ -1114,7 +1121,7 @@ namespace Dsp {
         }
 
     private:
-        StateType m_state[Channels];
+        std::vector<StateType> m_state;
     };
 
     // Empty state, can't process anything
@@ -1380,14 +1387,25 @@ namespace Dsp {
      *
      */
     template <class FilterClass,
-        int Channels = 0,
+        int ChannelsX = 0,
         class StateType = DirectFormII>
         class SimpleFilter : public FilterClass
     {
+        int Channels;
     public:
+
+        SimpleFilter() : FilterClass()
+        {
+            Channels = ChannelsX;
+        }
         int getNumChannels()
         {
             return Channels;
+        }
+        void setNumChannels(int nch)
+        {
+            Channels = nch;
+            m_state.SetChannelNumber(nch);
         }
 
         void reset()
@@ -1402,7 +1420,7 @@ namespace Dsp {
         }
 
     protected:
-        ChannelsState <Channels,
+        ChannelsState <ChannelsX,
             typename FilterClass::template State <StateType> > m_state;
     };
 
