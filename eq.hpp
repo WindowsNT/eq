@@ -4,7 +4,6 @@
 #include "fft.hpp"
 #define shared_ptr_debug shared_ptr
 #define make_shared_debug make_shared
-#include "alldspfilters.hpp"
 #endif
 
 #pragma warning(disable:4100)
@@ -113,8 +112,6 @@ namespace EQ
 		if (ns == 0 || smp == 0)
 			return;
 
-		//Mode = 0;
-
 		if (Mode == 1)
 		{
 			while (ns > 0 && (ns & (ns - 1)) != 0)
@@ -138,7 +135,11 @@ namespace EQ
 			ptsX.clear();
 			bool R = false;
 			float MaxA = 0;
-			for (int i = 0; i < ns; i++)
+			auto mw = rc.right - rc.left;
+			if (mw == 0)
+				return;
+			int step = (int)(ns / mw);
+			for (int i = 0; i < ns; i += step)
 			{
 				D2D1_POINT_2F pp;
 
@@ -222,8 +223,9 @@ namespace EQ
 
 		int LastNumChannels = 1;
 		int LastSR = 0;
-		std::vector<float> din;
-		std::vector<float> dout;
+		std::vector<std::vector<float>> dins;
+		std::vector<std::vector<float>> douts;
+		int ShowDataMode = 0;
 
 		void SetWindow(HWND hh)
 		{
@@ -1298,32 +1300,23 @@ namespace EQ
 
 			PaintTop(r, rrc);
 
-			/*			// Paint the wave
-						if (LastSR >0)
-						{
-							int BufferLe = 1;
-							if (din.size() < LastSR)
-								din.resize(LastSR);
-							if (dout.size() < LastSR)
-								dout.resize(LastSR);
-
-							if (true)
-							{
-								D2D1_RECT_F rc2 = {};
-								rc2.bottom = rc.bottom / 2.0f;
-								rc2.right = rc.right;
-								if (din.size() >= LastSR * BufferLe)
-								{
-									CComPtr<ID2D1Factory> fa;
-									r->GetFactory(&fa);
-									DrawWave(fa, r, rc2, 0, YellowBrush, 0, din.data(), LastSR  * BufferLe, 1);
-									din.erase(din.begin(), din.begin() + LastSR);
-								}
-
-							}
-
-						}
-			*/
+			// Paint the wave
+			if (LastSR > 0 && dins.size() > 0 && ShowDataMode > 0)
+			{
+				auto& din = dins[0];
+				auto& dout = douts[0];
+				D2D1_RECT_F rc2 = {};
+				rc2.bottom = rc.bottom / 2.0f;
+				rc2.right = rc.right;
+				CComPtr<ID2D1Factory> fa;
+				r->GetFactory(&fa);
+				DrawWave(fa, r, rc2, 0, YellowBrush, 0, din.data(), (int)din.size(), ShowDataMode - 1);
+				D2D1_RECT_F rc2a = rc2;
+				rc2a.top = rc2.bottom;
+				rc2a.bottom = rc.bottom;
+				DrawWave(fa, r, rc2a, 0, SelectBrush, 0, dout.data(), (int)dout.size(), ShowDataMode - 1);
+			}
+			
 		}
 
 		float X2Freqr(float x)
@@ -1378,6 +1371,23 @@ namespace EQ
 			y = (FLOAT)HIWORD(ll);
 			int h = FilterHitTest(x, y);
 			wchar_t re[1000] = { 0 };
+			if (h == -1)
+			{
+				HMENU hPr = CreatePopupMenu();
+				AppendMenu(hPr, MF_STRING, 1, L"Live data off");
+				AppendMenu(hPr, MF_STRING, 2, L"Live data signal");
+				AppendMenu(hPr, MF_STRING, 3, L"Live data FFT");
+					CheckMenuItem(hPr, ShowDataMode + 1, MF_CHECKED);
+
+				POINT po;
+				GetCursorPos(&po);
+				int tcmd = TrackPopupMenu(hPr, TPM_CENTERALIGN | TPM_RETURNCMD, po.x, po.y, 0, hParent, 0);
+				DestroyMenu(hPr);
+				if (tcmd == 0)
+					return;
+				ShowDataMode = tcmd - 1;
+				return;
+			}
 			if (h >= 0)
 			{
 
@@ -1874,15 +1884,29 @@ namespace EQ
 		virtual bool Run2(int SR, int nch, float** in, int ons, float** out)
 		{
 			LastSR = SR;
-			/*			if (IsWindow(MainWindow))
-						{
-							std::lock_guard<std::recursive_mutex> lg(mu);
-							auto sz = din.size();
-							din.resize(sz + ons);
-							memcpy(din.data() + sz, in[0], ons * sizeof(float));
-						}
-			*/
-
+			if (ShowDataMode > 0 && IsWindow(MainWindow))
+			{
+				std::lock_guard<std::recursive_mutex> lg(mu);
+				dins.resize(nch);
+				int NeedSamples = SR*4;
+				for (int i = 0; i < nch; i++)
+				{
+					auto& din = dins[i];
+					auto sz = din.size();
+					if (sz <= NeedSamples)
+						din.resize(NeedSamples);
+					sz = din.size();
+					din.resize(sz + ons);
+					memcpy(din.data() + sz, in[i], ons * sizeof(float));
+					if (din.size() > NeedSamples)
+					{
+						auto rd = din.size() - NeedSamples;
+						din.erase(din.begin(), din.begin() + rd);
+						sz = din.size();
+					}
+				}
+			}
+			
 			if (filters.empty())
 				return false;
 			for (auto& b : filters)
@@ -2041,39 +2065,31 @@ namespace EQ
 			}
 
 
-			/*			if (IsWindow(MainWindow))
-						{
-							std::lock_guard<std::recursive_mutex> lg(mu);
-							auto sz = dout.size();
-							dout.resize(sz + ons);
-							memcpy(dout.data() + sz, out[0], ons * sizeof(float));
-						}
-						*/
+			if (ShowDataMode > 0 && IsWindow(MainWindow))
+			{
+				std::lock_guard<std::recursive_mutex> lg(mu);
+				douts.resize(nch);
+				int NeedSamples = SR * 4;
+				for (int i = 0; i < nch; i++)
+				{
+					auto& din = douts[i];
+					auto sz = din.size();
+					if (sz <= NeedSamples)
+						din.resize(NeedSamples);
+					sz = din.size();
+					din.resize(sz + ons);
+					memcpy(din.data() + sz, out[i], ons * sizeof(float));
+					if (din.size() > NeedSamples)
+					{
+						auto rd = din.size() - NeedSamples;
+						din.erase(din.begin(), din.begin() + rd);
+					}
+				}
+			}
 			return true;
 		}
-
-//		std::vector<float> ch1;
-//		std::vector<float> ch2;
-//		std::vector<float> och1;
-//		std::vector<float> och2;
-
-//		float* st[2] = {};
-//		float* ost[2] = {};
 		virtual void Run(int SR, float* in, int ons, float* outd)
 		{
-/*			ch1.resize(ons);
-			ch2.resize(ons);
-			och1.resize(ons);
-			och2.resize(ons);
-			memcpy(ch1.data(), in, ons * sizeof(float));
-			memcpy(ch2.data(), in, ons * sizeof(float));
-			st[0] = ch1.data();
-			st[1] = ch2.data();
-			ost[0] = och1.data();
-			ost[1] = och2.data();
-			Run2(SR, 2, (float**)st, ons, (float**)ost);
-			memcpy(outd, och1.data(), ons * sizeof(float));
-*/
 			// Single channel
 			Run2(SR, 1, &in, ons, &outd);
 		}

@@ -5,6 +5,8 @@ HINSTANCE hAppInstance = 0;
 
 #include "xml\\xml3all.h"
 
+#include "alldspfilters_h.hpp"
+#include "alldspfilters_c.cpp"
 #include "eq.hpp"
 
 // ----
