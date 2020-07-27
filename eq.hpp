@@ -14,6 +14,9 @@ extern "C" {
 #include "..\\DSPFilters\\DSPFilters\\include\\DspFilters\\Butterworth.h"
 #else
 #include "alldspfilters.hpp"
+#include "fft.hpp"
+#define shared_ptr_debug shared_ptr
+#define make_shared_debug make_shared
 #endif
 
 #pragma warning(disable:4100)
@@ -37,6 +40,11 @@ namespace EQ
 		virtual void RedrawRequest(EQ* pr) = 0;
 		virtual void Dirty(EQ* e,bool) = 0;
 
+#ifdef ENABLE_SHARED_PTR_DEBUG
+		virtual ~EQCALLBACK()
+		{
+		}
+#endif
 	};
 
 	class MMCB : public EQCALLBACK
@@ -46,11 +54,172 @@ namespace EQ
 		int SR;
 
 		virtual void RedrawRequest(EQ* p);
-		virtual void Dirty(EQ* q,bool)
-		{
+		virtual void Dirty(EQ* q, bool);
 
+#ifdef ENABLE_SHARED_PTR_DEBUG
+		virtual ~MMCB()
+		{
 		}
+#endif
 	};
+
+
+
+
+	inline QuickFFT2<float> f4;
+	inline std::vector<D2D1_POINT_2F> ptsX;
+
+	inline void FillPolygon(ID2D1Factory* f, ID2D1RenderTarget* r, D2D1_POINT_2F* p, size_t num, ID2D1Brush* b, FLOAT szx, bool Close)
+	{
+		// Convert POINT to D2D1_POINT_2F
+		if (!p || !num)
+			return;
+
+
+		CComPtr<ID2D1PathGeometry> pg = 0;
+		CComPtr<ID2D1GeometrySink> pgs = 0;
+		f->CreatePathGeometry(&pg);
+		if (pg)
+		{
+			pg->Open(&pgs);
+			if (pgs)
+			{
+				D2D1_POINT_2F fb;
+				fb.x = (FLOAT)p[0].x;
+				fb.y = (FLOAT)p[0].y;
+				// Use D2D1_FIGURE_BEGIN_FILLED for filled
+				D2D1_FIGURE_BEGIN fg = D2D1_FIGURE_BEGIN_HOLLOW;
+				if (szx == 0)
+					fg = D2D1_FIGURE_BEGIN_FILLED;
+				D2D1_FIGURE_END fe;
+				if (Close)
+					fe = D2D1_FIGURE_END_CLOSED;
+				else
+					fe = D2D1_FIGURE_END_OPEN;
+				pgs->BeginFigure(fb, fg);
+				for (size_t i = 1; i < num; i++)
+				{
+					D2D1_POINT_2F& a = p[i];
+					if (&a == &p[0])
+						continue;
+					D2D1_POINT_2F fu;
+					fu.x = a.x;
+					fu.y = a.y;
+					pgs->AddLine(fu);
+				}
+				pgs->EndFigure(fe);
+				pgs->Close();
+			}
+			if (szx > 0)
+				r->DrawGeometry(pg, b, szx);
+			else
+				r->FillGeometry(pg, b);
+		}
+	}
+
+	inline void DrawWave(ID2D1Factory* f, ID2D1RenderTarget* r, D2D1_RECT_F& rc, ID2D1SolidColorBrush* bg, ID2D1SolidColorBrush* fg, ID2D1SolidColorBrush* redw, float* smp, int ns, int Mode)
+	{
+		if (ns == 0 || smp == 0)
+			return;
+
+		//Mode = 0;
+
+		if (Mode == 1)
+		{
+			while (ns > 0 && (ns & (ns - 1)) != 0)
+			{
+				ns--;
+			}
+		}
+
+		if (Mode == 1)
+		{
+			f4.Prepare(smp, ns);
+			smp = f4.Transform();
+			ns /= 2; // take only half part
+		}
+
+		if (bg)
+			r->FillRectangle(rc, bg);
+
+		if (Mode == 0)
+		{
+			ptsX.clear();
+			bool R = false;
+			float MaxA = 0;
+			for (int i = 0; i < ns; i++)
+			{
+				D2D1_POINT_2F pp;
+
+				// In ns, rc.right
+				// in i,   ?
+				pp.x = ((rc.right - rc.left) * i) / (float)ns;
+				pp.x += rc.left;
+
+				float s = smp[i];
+				auto fs = fabs(s);
+				if (fs > MaxA)
+					MaxA = fs;
+				if (MaxA > 1.0f)
+				{
+
+				}
+				if (Mode == 0)
+					s += 1.0f;
+				s /= 2.0f;
+
+				// In rc.bottom, 1.0f
+				// ?             s
+				pp.y = (rc.bottom - rc.top) * s;
+				pp.y += rc.top;
+				if (pp.y > rc.bottom)
+				{
+					pp.y = rc.bottom;
+					R = true;
+				}
+				if (pp.y < rc.top)
+				{
+					pp.y = rc.top;
+					R = true;
+				}
+				ptsX.push_back(pp);
+			}
+			FillPolygon(f, r, ptsX.data(), ptsX.size(), R ? redw : fg, 1, 0);
+		}
+		if (Mode == 1)
+		{
+			int Bars = 16;
+			int SamplesPerBar = ns / Bars;
+			float WidthPerBar = (rc.right - rc.left) / (float)Bars;
+			int e = 0;
+			for (int i = 0; i < Bars; i++)
+			{
+				D2D1_RECT_F rr = { 0 };
+				rr.left = rc.left + i * WidthPerBar + 1;
+				rr.right = rr.left + (WidthPerBar - 2);
+				rr.top = rc.top;
+				rr.bottom = rc.bottom;
+				float S = 0;
+				for (int h = 0; h < SamplesPerBar; h++)
+				{
+					if (e >= ns)
+						break;
+					float s = sqrt(smp[e] * smp[e] + smp[e + ns] * smp[e + ns]);
+					e++;
+
+					s /= (float)(ns * 2);
+
+					s *= 12.0f;
+					s = fabs(s);
+					S += s;
+				}
+				S /= (float)(SamplesPerBar);
+				rr.top = rc.top + (rc.bottom - rc.top) * (1.0f - S);
+				r->FillRectangle(rr, fg);
+			}
+		}
+
+	}
 
 
 	class EQ
@@ -59,6 +228,10 @@ namespace EQ
 		HWND hParent;
 		bool NextRunBuild = false;
 		std::recursive_mutex mu;
+
+		int LastSR = 0;
+		std::vector<float> din;
+		std::vector<float> dout;
 
 		void SetWindow(HWND hh)
 		{
@@ -162,7 +335,7 @@ namespace EQ
 		HCURSOR ArrowCursor = LoadCursor(0, IDC_ARROW);
 		HCURSOR ResizeCursor = LoadCursor(0, IDC_SIZENS);
 		
-		vector<shared_ptr<EQCALLBACK>> cb;
+		vector<shared_ptr_debug<EQCALLBACK>> cb;
 		D2D1_COLOR_F bg = { 0.1f,0.1f,0.1f,1.0f };
 		D2D1_COLOR_F whitecolor = { 1.0f,1.0f,1.0f,1.0f };
 		D2D1_COLOR_F graycolor = { 0.5f,0.5f,0.5f,0.6f };
@@ -201,7 +374,7 @@ namespace EQ
 		{
 			cb.clear();
 		}
-		void AddCallback(shared_ptr<EQCALLBACK> cx)
+		void AddCallback(shared_ptr_debug<EQCALLBACK> cx)
 		{
 			cb.push_back(cx);
 		}
@@ -384,14 +557,16 @@ namespace EQ
 						
 
 						c->SetWindow(hh);
-						auto mmd = std::make_shared<MMCB>();
+						auto mmd = std::make_shared_debug<MMCB>();
 						mmd->hC = hh;
 						mmd->SR = z->SR;
 						c->AddCallback(mmd);
+						SetTimer(hh, 1, 100, 0);
 						return true;
 					}
 					case WM_CLOSE:
 					{
+						KillTimer(hh, 1);
 						EndDialog(hh, 0);
 						return 0;
 					}
@@ -436,6 +611,17 @@ namespace EQ
 					{
 						return 1;
 					}
+					case WM_TIMER:
+					{
+						bool Mo = ((GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0);
+						if (!Mo)
+						{
+							InvalidateRect(hh, 0, false);
+							UpdateWindow(hh);
+						}
+						return 0;
+					}
+
 					case WM_PAINT:
 					{
 						PAINTSTRUCT ps;
@@ -544,6 +730,15 @@ namespace EQ
 
 	};
 
+	inline void MMCB::Dirty(EQ* q, bool)
+	{
+
+		if (!q)
+			return;
+		q->Build(48000);
+	}
+
+
 	inline void MMCB::RedrawRequest(EQ* p)
 	{
 		if (!IsWindow(hC))
@@ -578,23 +773,23 @@ namespace EQ
 
 	};
 
-	typedef Dsp::SimpleFilter<Dsp::Butterworth::LowPass<100>, 1> ButtLP;
-	typedef Dsp::SimpleFilter<Dsp::ChebyshevI::LowPass<100>, 1> Che1LP;
-	typedef Dsp::SimpleFilter<Dsp::ChebyshevII::LowPass<100>, 1> Che2LP;
-	typedef Dsp::SimpleFilter<Dsp::Elliptic::LowPass<100>, 1> EllLP;
+	typedef Dsp::SimpleFilter<Dsp::Butterworth::LowPass<100>, 2> ButtLP;
+	typedef Dsp::SimpleFilter<Dsp::ChebyshevI::LowPass<100>, 2> Che1LP;
+	typedef Dsp::SimpleFilter<Dsp::ChebyshevII::LowPass<100>, 2> Che2LP;
+	typedef Dsp::SimpleFilter<Dsp::Elliptic::LowPass<100>, 2> EllLP;
 
-	typedef Dsp::SimpleFilter<Dsp::Butterworth::HighPass<100>, 1> ButtHP;
-	typedef Dsp::SimpleFilter<Dsp::ChebyshevI::HighPass<100>, 1> Che1HP;
-	typedef Dsp::SimpleFilter<Dsp::ChebyshevII::HighPass<100>, 1> Che2HP;
-	typedef Dsp::SimpleFilter<Dsp::Elliptic::HighPass<100>, 1> EllHP;
+	typedef Dsp::SimpleFilter<Dsp::Butterworth::HighPass<100>, 2> ButtHP;
+	typedef Dsp::SimpleFilter<Dsp::ChebyshevI::HighPass<100>, 2> Che1HP;
+	typedef Dsp::SimpleFilter<Dsp::ChebyshevII::HighPass<100>, 2> Che2HP;
+	typedef Dsp::SimpleFilter<Dsp::Elliptic::HighPass<100>, 2> EllHP;
 
-	typedef Dsp::SimpleFilter<Dsp::Butterworth::LowShelf<100>, 1> ButtLPs;
-	typedef Dsp::SimpleFilter<Dsp::ChebyshevI::LowShelf<100>, 1> Che1LPs;
-	typedef Dsp::SimpleFilter<Dsp::ChebyshevII::LowShelf<100>, 1> Che2LPs;
+	typedef Dsp::SimpleFilter<Dsp::Butterworth::LowShelf<100>, 2> ButtLPs;
+	typedef Dsp::SimpleFilter<Dsp::ChebyshevI::LowShelf<100>, 2> Che1LPs;
+	typedef Dsp::SimpleFilter<Dsp::ChebyshevII::LowShelf<100>, 2> Che2LPs;
 
-	typedef Dsp::SimpleFilter<Dsp::Butterworth::HighShelf<100>, 1> ButtHPs;
-	typedef Dsp::SimpleFilter<Dsp::ChebyshevI::HighShelf<100>, 1> Che1HPs;
-	typedef Dsp::SimpleFilter<Dsp::ChebyshevII::HighShelf<100>, 1> Che2HPs;
+	typedef Dsp::SimpleFilter<Dsp::Butterworth::HighShelf<100>, 2> ButtHPs;
+	typedef Dsp::SimpleFilter<Dsp::ChebyshevI::HighShelf<100>, 2> Che1HPs;
+	typedef Dsp::SimpleFilter<Dsp::ChebyshevII::HighShelf<100>, 2> Che2HPs;
 
 	struct PFILT
 	{
@@ -653,7 +848,7 @@ namespace EQ
 		}
 
 		sf_biquad_state_st st = { 0 };
-		std::shared_ptr<void> sf = 0;
+		std::shared_ptr_debug<void> sf = 0;
 
 
 		void Build(int SR)
@@ -672,25 +867,25 @@ namespace EQ
 					}
 					if (SpecialType == 1)
 					{
-						auto sf2 = std::make_shared<ButtLP>();
+						auto sf2 = std::make_shared_debug<ButtLP>();
 						sf2->setup(Order, SR, fr);
 						sf = sf2;
 					}
 					if (SpecialType == 2)
 					{
-						auto sf2 = std::make_shared<Che1LP>();
+						auto sf2 = std::make_shared_debug<Che1LP>();
 						sf2->setup(Order, SR, fr,ripple);
 						sf = sf2;
 					}
 					if (SpecialType == 3)
 					{
-						auto sf2 = std::make_shared<Che2LP>();
+						auto sf2 = std::make_shared_debug<Che2LP>();
 						sf2->setup(Order, SR, fr, ripple);
 						sf = sf2;
 					}
 					if (SpecialType == 4)
 					{
-						auto sf2 = std::make_shared<EllLP>();
+						auto sf2 = std::make_shared_debug<EllLP>();
 						sf2->setup(Order, SR, fr, ripple,rolloff);
 						sf = sf2;
 					}
@@ -708,25 +903,25 @@ namespace EQ
 					}
 					if (SpecialType == 1)
 					{
-						auto sf2 = std::make_shared<ButtHP>();
+						auto sf2 = std::make_shared_debug<ButtHP>();
 						sf2->setup(Order, SR, fr);
 						sf = sf2;
 					}
 					if (SpecialType == 2)
 					{
-						auto sf2 = std::make_shared<Che1HP>();
+						auto sf2 = std::make_shared_debug<Che1HP>();
 						sf2->setup(Order, SR, fr, ripple);
 						sf = sf2;
 					}
 					if (SpecialType == 3)
 					{
-						auto sf2 = std::make_shared<Che2HP>();
+						auto sf2 = std::make_shared_debug<Che2HP>();
 						sf2->setup(Order, SR, fr, ripple);
 						sf = sf2;
 					}
 					if (SpecialType == 4)
 					{
-						auto sf2 = std::make_shared<EllHP>();
+						auto sf2 = std::make_shared_debug<EllHP>();
 						sf2->setup(Order, SR, fr, ripple, rolloff);
 						sf = sf2;
 					}
@@ -740,19 +935,19 @@ namespace EQ
 					// And the DSP
 					if (SpecialType == 6)
 					{
-						auto sf2 = std::make_shared<ButtLPs>();
+						auto sf2 = std::make_shared_debug<ButtLPs>();
 						sf2->setup(Order, SR, fr,dB);
 						sf = sf2;
 					}
 					if (SpecialType == 7)
 					{
-						auto sf2 = std::make_shared<Che1LPs>();
+						auto sf2 = std::make_shared_debug<Che1LPs>();
 						sf2->setup(Order, SR, fr, dB,ripple);
 						sf = sf2;
 					}
 					if (SpecialType == 8)
 					{
-						auto sf2 = std::make_shared<Che2LPs>();
+						auto sf2 = std::make_shared_debug<Che2LPs>();
 						sf2->setup(Order, SR, fr,dB,ripple);
 						sf = sf2;
 					}
@@ -766,19 +961,19 @@ namespace EQ
 					// And the DSP
 					if (SpecialType == 6)
 					{
-						auto sf2 = std::make_shared<ButtHPs>();
+						auto sf2 = std::make_shared_debug<ButtHPs>();
 						sf2->setup(Order, SR, fr, dB);
 						sf = sf2;
 					}
 					if (SpecialType == 7)
 					{
-						auto sf2 = std::make_shared<Che1HPs>();
+						auto sf2 = std::make_shared_debug<Che1HPs>();
 						sf2->setup(Order, SR, fr, dB, ripple);
 						sf = sf2;
 					}
 					if (SpecialType == 8)
 					{
-						auto sf2 = std::make_shared<Che2LPs>();
+						auto sf2 = std::make_shared_debug<Che2LPs>();
 						sf2->setup(Order, SR, fr, dB, ripple);
 						sf = sf2;
 					}
@@ -938,43 +1133,43 @@ namespace EQ
 
 			if (b.SpecialType == 1)
 			{
-				std::shared_ptr<ButtHP> fx;
+				std::shared_ptr_debug<ButtHP> fx;
 				fx = std::static_pointer_cast<ButtHP>(f.sf);
 				fill(fx.get());
 			}
 			if (b.SpecialType == 2)
 			{
-				std::shared_ptr<Che1HP> fx;
+				std::shared_ptr_debug<Che1HP> fx;
 				fx = std::static_pointer_cast<Che1HP>(f.sf);
 				fill(fx.get());
 			}
 			if (b.SpecialType == 3)
 			{
-				std::shared_ptr<Che2HP> fx;
+				std::shared_ptr_debug<Che2HP> fx;
 				fx = std::static_pointer_cast<Che2HP>(f.sf);
 				fill(fx.get());
 			}
 			if (b.SpecialType == 4)
 			{
-				std::shared_ptr<EllHP> fx;
+				std::shared_ptr_debug<EllHP> fx;
 				fx = std::static_pointer_cast<EllHP>(f.sf);
 				fill(fx.get());
 			}
 			if (b.SpecialType == 6)
 			{
-				std::shared_ptr<ButtLPs> fx;
+				std::shared_ptr_debug<ButtLPs> fx;
 				fx = std::static_pointer_cast<ButtLPs>(f.sf);
 				fill(fx.get());
 			}
 			if (b.SpecialType == 7)
 			{
-				std::shared_ptr<Che1LPs> fx;
+				std::shared_ptr_debug<Che1LPs> fx;
 				fx = std::static_pointer_cast<Che1LPs>(f.sf);
 				fill(fx.get());
 			}
 			if (b.SpecialType == 8)
 			{
-				std::shared_ptr<Che2LPs> fx;
+				std::shared_ptr_debug<Che2LPs> fx;
 				fx = std::static_pointer_cast<Che2LPs>(f.sf);
 				fill(fx.get());
 			}
@@ -1093,6 +1288,32 @@ namespace EQ
 			
 			PaintTop(r,rrc);
 
+/*			// Paint the wave
+			if (LastSR >0)
+			{
+				int BufferLe = 1;
+				if (din.size() < LastSR)
+					din.resize(LastSR);
+				if (dout.size() < LastSR)
+					dout.resize(LastSR);
+
+				if (true)
+				{
+					D2D1_RECT_F rc2 = {};
+					rc2.bottom = rc.bottom / 2.0f;
+					rc2.right = rc.right;
+					if (din.size() >= LastSR * BufferLe)
+					{
+						CComPtr<ID2D1Factory> fa;
+						r->GetFactory(&fa);
+						DrawWave(fa, r, rc2, 0, YellowBrush, 0, din.data(), LastSR  * BufferLe, 1);
+						din.erase(din.begin(), din.begin() + LastSR);
+					}
+
+				}
+
+			}
+*/
 		}
 
 		float X2Freqr(float x)
@@ -1576,11 +1797,11 @@ namespace EQ
 			if (h >= 0)
 			{
 				if (filters[h].SpecialFilter == 0)
-				{
 					filters.erase(filters.begin() + h);
-					Dirty(true);
-					Redraw();
-				}
+				else
+					filters[h].A = !filters[h].A;
+				Redraw();
+				Dirty(true);
 				return;
 			}
 
@@ -1638,65 +1859,23 @@ namespace EQ
 		{
 			Build(SR);
 		}
-		
-		// Multi channel
-		virtual bool Run2(int SR, int nch, float** in, int ns, float** out)
+
+
+		// The filters are stereo, so do it
+		virtual bool Run2(int SR, int nch, float** in, int ons, float** out)
 		{
-			// TODO: Stereo Processing
-			for (int i = 0; i < nch; i++)
-				Run(SR, in[i], ns, out[i]);
-
-/*			if (filters.empty())
-				return true;
-			for (auto& b : filters)
+			LastSR = SR;
+/*			if (IsWindow(MainWindow))
 			{
-				if (b.st.b0 == 0 && b.st.b1 == 0 && b.st.b2 == 0 && b.sf == 0)
-					b.Build(SR);
+				std::lock_guard<std::recursive_mutex> lg(mu);
+				auto sz = din.size();
+				din.resize(sz + ons);
+				memcpy(din.data() + sz, in[0], ons * sizeof(float));
 			}
-
-			inb.resize(ns);
-			outb.resize(ns);
-			while(nch > 1)
-			{
-				for (size_t i = 0; i < ns; i++)
-				{
-					inb[i].L = in[nch - 2][i];
-					inb[i].R = in[nch - 1][i];
-				}
-				for (auto& b : filters)
-				{
-					if (!b.A)
-						continue;
-					if (b.sf)
-					{
-						if (b.SpecialFilter == 1) // Low cut
-						{
-						}
-					}
-					else
-					{
-						sf_biquad_process(&b.st, (int)ns, inb.data(), outb.data());
-					}
-				}
-				for (size_t i = 0; i < ns; i++)
-				{
-					out[nch - 2][i] = outb[i].L;
-					out[nch - 1][i] = outb[i].R;
-				}
-
-				nch -= 2;
-			}
-			if (nch == 1)
-				Run(SR, in[0], ns, out[0]);
 */
-			return true;
-		}
 
-		// Single channel
-		virtual void Run(int SR, float* in, int ons, float* outd)
-		{
 			if (filters.empty())
-				return;
+				return false;
 			for (auto& b : filters)
 			{
 				if (NextRunBuild || (b.st.b0 == 0 && b.st.b1 == 0 && b.st.b2 == 0))
@@ -1704,9 +1883,8 @@ namespace EQ
 			}
 			NextRunBuild = 0;
 
-			//auto nns = ons;
-			inb.resize(ons);
-			outb.resize(ons);
+
+
 
 			bool One = false;
 			for (auto& b : filters)
@@ -1717,52 +1895,53 @@ namespace EQ
 					if (b.SpecialFilter == 1) // Low cut - this is the first filter
 					{
 						// Copy clear to out
-						memcpy(outd, in, ons * sizeof(float));
+						for(int i = 0 ; i < nch ; i++)
+							memcpy(out[i], in[i], ons * sizeof(float));
 
 						if (!b.A)
 							continue;
 
 						if (b.SpecialType == 1)
 						{
-							std::shared_ptr<ButtHP> fx;
+							std::shared_ptr_debug<ButtHP> fx;
 							fx = std::static_pointer_cast<ButtHP>(b.sf);
-							fx->process(ons, &outd);
+							fx->process(ons, out);
 						}
 						if (b.SpecialType == 2)
 						{
-							std::shared_ptr<Che1HP> fx;
+							std::shared_ptr_debug<Che1HP> fx;
 							fx = std::static_pointer_cast<Che1HP>(b.sf);
-							fx->process(ons, &outd);
+							fx->process(ons, out);
 						}
 						if (b.SpecialType == 3)
 						{
-							std::shared_ptr<Che2HP> fx;
+							std::shared_ptr_debug<Che2HP> fx;
 							fx = std::static_pointer_cast<Che2HP>(b.sf);
-							fx->process(ons, &outd);
+							fx->process(ons, out);
 						}
 						if (b.SpecialType == 4)
 						{
-							std::shared_ptr<EllHP> fx;
+							std::shared_ptr_debug<EllHP> fx;
 							fx = std::static_pointer_cast<EllHP>(b.sf);
-							fx->process(ons, &outd);
+							fx->process(ons, out);
 						}
 						if (b.SpecialType == 6)
 						{
-							std::shared_ptr<ButtLPs> fx;
+							std::shared_ptr_debug<ButtLPs> fx;
 							fx = std::static_pointer_cast<ButtLPs>(b.sf);
-							fx->process(ons, &outd);
+							fx->process(ons, out);
 						}
 						if (b.SpecialType == 7)
 						{
-							std::shared_ptr<Che1LPs> fx;
+							std::shared_ptr_debug<Che1LPs> fx;
 							fx = std::static_pointer_cast<Che1LPs>(b.sf);
-							fx->process(ons, &outd);
+							fx->process(ons, out);
 						}
 						if (b.SpecialType == 8)
 						{
-							std::shared_ptr<Che2LPs> fx;
+							std::shared_ptr_debug<Che2LPs> fx;
 							fx = std::static_pointer_cast<Che2LPs>(b.sf);
-							fx->process(ons, &outd);
+							fx->process(ons, out);
 						}
 					}
 					if (b.SpecialFilter == 2) // High cut - this is the last filter
@@ -1773,45 +1952,45 @@ namespace EQ
 
 						if (b.SpecialType == 1)
 						{
-							std::shared_ptr<ButtLP> fx;
+							std::shared_ptr_debug<ButtLP> fx;
 							fx = std::static_pointer_cast<ButtLP>(b.sf);
-							fx->process(ons, &outd);
+							fx->process(ons, out);
 						}
 						if (b.SpecialType == 2)
 						{
-							std::shared_ptr<Che1LP> fx;
+							std::shared_ptr_debug<Che1LP> fx;
 							fx = std::static_pointer_cast<Che1LP>(b.sf);
-							fx->process(ons, &outd);
+							fx->process(ons, out);
 						}
 						if (b.SpecialType == 3)
 						{
-							std::shared_ptr<Che2LP> fx;
+							std::shared_ptr_debug<Che2LP> fx;
 							fx = std::static_pointer_cast<Che2LP>(b.sf);
-							fx->process(ons, &outd);
+							fx->process(ons, out);
 						}
 						if (b.SpecialType == 4)
 						{
-							std::shared_ptr<EllLP> fx;
+							std::shared_ptr_debug<EllLP> fx;
 							fx = std::static_pointer_cast<EllLP>(b.sf);
-							fx->process(ons, &outd);
+							fx->process(ons, out);
 						}
 						if (b.SpecialType == 6)
 						{
-							std::shared_ptr<ButtHPs> fx;
+							std::shared_ptr_debug<ButtHPs> fx;
 							fx = std::static_pointer_cast<ButtHPs>(b.sf);
-							fx->process(ons, &outd);
+							fx->process(ons, out);
 						}
 						if (b.SpecialType == 7)
 						{
-							std::shared_ptr<Che1HPs> fx;
+							std::shared_ptr_debug<Che1HPs> fx;
 							fx = std::static_pointer_cast<Che1HPs>(b.sf);
-							fx->process(ons, &outd);
+							fx->process(ons, out);
 						}
 						if (b.SpecialType == 8)
 						{
-							std::shared_ptr<Che2HPs> fx;
+							std::shared_ptr_debug<Che2HPs> fx;
 							fx = std::static_pointer_cast<Che2HPs>(b.sf);
-							fx->process(ons, &outd);
+							fx->process(ons, out);
 						}
 					}
 				}
@@ -1820,25 +1999,75 @@ namespace EQ
 					if (!b.A)
 						continue;
 
+					inb.resize(ons);
+					outb.resize(ons);
 					for (size_t i = 0; i < ons; i++)
 					{
-						inb[i].L = outd[i];
-						inb[i].R = outd[i];
+						inb[i].L = in[0][i];
+						inb[i].R = in[1][i];
 					}
 
 					sf_biquad_process(&b.st, (int)ons, inb.data(), outb.data());
 					for (size_t i = 0; i < ons; i++)
 					{
-						outd[i] = outb[i].L;
+						out[0][i] = outb[i].L;
+						out[1][i] = outb[i].R;
 					}
 				}
 			}
 			if (!One)
 			{
-				memcpy(outd, in, ons * sizeof(float));
+				for (int i = 0; i < nch; i++)
+					memcpy(out[i], in[i], ons * sizeof(float));
 			}
+
+
+/*			if (IsWindow(MainWindow))
+			{
+				std::lock_guard<std::recursive_mutex> lg(mu);
+				auto sz = dout.size();
+				dout.resize(sz + ons);
+				memcpy(dout.data() + sz, out[0], ons * sizeof(float));
+			}
+			*/
+			return true;
+		}
+		
+		std::vector<float> ch1;
+		std::vector<float> ch2;
+		std::vector<float> och1;
+		std::vector<float> och2;
+
+		float* st[2] = {};
+		float* ost[2] = {};
+		virtual void Run(int SR, float* in, int ons, float* outd)
+		{
+			ch1.resize(ons);
+			ch2.resize(ons);
+			och1.resize(ons);
+			och2.resize(ons);
+			memcpy(ch1.data(), in, ons * sizeof(float));
+			memcpy(ch2.data(), in, ons * sizeof(float));
+			st[0] = ch1.data();
+			st[1] = ch2.data();
+			ost[0] = och1.data();
+			ost[1] = och2.data();
+			Run2(SR, 2, (float**)st, ons,(float**)ost);
+			memcpy(outd, och1.data(), ons * sizeof(float));
+		}
+
+		// Single channel
+		
+/*		virtual void Run(int SR, float* in, int ons, float* outd)
+		{
+			//auto nns = ons;
+			inb.resize(ons);
+			outb.resize(ons);
+
+		
 			return;
 		}
+*/
 	};
 
 	class GRAPHICEQ : public EQ
@@ -2480,6 +2709,7 @@ namespace EQ
 
 		virtual void Run(int SR, float* in, int ons, float* outd)
 		{
+			LastSR = SR;
 			if (bands.empty())
 				return;
 			if (UseBiquad)

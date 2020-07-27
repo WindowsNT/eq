@@ -128,7 +128,7 @@ void StartMP3(std::wstring fi)
 
 	wout = 0;
 	wout = make_shared<WOUT>();
-	wout->Open(WAVE_MAPPER, SR, 16);
+	wout->Open(WAVE_MAPPER, SR, 16,nCh);
 
 	vector<char> ww(1000);
 	WAVEFORMATEX* w2 = (WAVEFORMATEX*)ww.data();
@@ -156,7 +156,7 @@ void StartMP3(std::wstring fi)
 	WAVEFORMATEX* wDest = (WAVEFORMATEX*)e.data();
 	wDest->wFormatTag = WAVE_FORMAT_PCM;
 	wDest->nSamplesPerSec = w.nSamplesPerSec;
-	wDest->nChannels = 1;
+	wDest->nChannels = (WORD)nCh;
 	wDest->wBitsPerSample = 16;
 	auto f = acmFormatSuggest(0, &w, wDest, 1000, ACM_FORMATSUGGESTF_NSAMPLESPERSEC | ACM_FORMATSUGGESTF_WFORMATTAG | ACM_FORMATSUGGESTF_NCHANNELS | ACM_FORMATSUGGESTF_WBITSPERSAMPLE);
 	if (f)
@@ -229,7 +229,10 @@ void StartMP3(std::wstring fi)
 			if (true)
 			{
 				std::lock_guard<std::recursive_mutex> lg(mu);
-				prx->Run(SR, d2.data(), fsz, de.data());
+				if (nCh == 1)
+					prx->Run(SR, d2.data(), fsz, de.data());
+				else
+					prx->Run(SR, d2.data(), fsz, de.data()); //*
 			}
 
 
@@ -304,6 +307,16 @@ LRESULT CALLBACK Main_DP(HWND hh, UINT mm, WPARAM ww, LPARAM ll)
 {
 	switch (mm)
 	{
+		case WM_TIMER:
+		{
+			bool Mo = ((GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0);
+			if (!Mo)
+			{
+				InvalidateRect(hh, 0, false);
+				UpdateWindow(hh);
+			}
+			return 0;
+		}
 		case WM_CREATE:
 		{
 			MainWindow = hh;
@@ -312,6 +325,7 @@ LRESULT CALLBACK Main_DP(HWND hh, UINT mm, WPARAM ww, LPARAM ll)
 			prx->AddCallback(cxt);
 			XML3::XML x("eq.xml");
 			prx->Unser(x.GetRootElement());
+			SetTimer(hh, 1, 100, 0);
 
 
 
@@ -333,6 +347,7 @@ LRESULT CALLBACK Main_DP(HWND hh, UINT mm, WPARAM ww, LPARAM ll)
 
 		case WM_CLOSE:
 		{
+			KillTimer(hh, 1);
 			XML3::XML x("eq.xml");
 			prx->Ser(x.GetRootElement());
 			x.Save();

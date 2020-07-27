@@ -26,7 +26,7 @@ private:
 public:
 
 	WIN(function<void(const char*d, DWORD sz)> ffx, int bufnum = 10);
-	bool Open(int wid = WAVE_MAPPER, DWORD SR = 22050, WORD BPS = 16);
+	bool Open(int wid = WAVE_MAPPER, DWORD SR = 22050, WORD BPS = 16,int CH = 1);
 	void thrx();
 	bool Start();
 	bool Stop();
@@ -53,7 +53,7 @@ private:
 public:
 
 	WOUT(int lt = 5);
-	bool Open(int wid = WAVE_MAPPER, DWORD SR = 22050, WORD BPS = 16);
+	bool Open(int wid = WAVE_MAPPER, DWORD SR = 22050, WORD BPS = 16,int CH = 1);
 	void thrx();
 	bool Write(const char* d, size_t sz);
 	~WOUT();
@@ -115,11 +115,11 @@ WIN::WIN(function<void(const char*d, DWORD sz)> ffx, int bufnum)
 	hEv = CreateEvent(0, 0, 0, 0);
 }
 
-bool WIN::Open(int wid, DWORD SR, WORD BPS)
+bool WIN::Open(int wid, DWORD SR, WORD BPS,int CH)
 {
 	WAVEFORMATEX wEx = { 0 };
 	wEx.wFormatTag = WAVE_FORMAT_PCM;
-	wEx.nChannels = 1;
+	wEx.nChannels = (WORD)CH;
 	wEx.nSamplesPerSec = SR;
 	wEx.wBitsPerSample = BPS;
 	wEx.nBlockAlign = (wEx.wBitsPerSample / 8) * wEx.nChannels;
@@ -219,11 +219,11 @@ WOUT::WOUT(int lt)
 	hCanSend = CreateEvent(0, TRUE, TRUE, 0);
 }
 
-bool WOUT::Open(int wid, DWORD SR, WORD BPS)
+bool WOUT::Open(int wid, DWORD SR, WORD BPS,int CH)
 {
 	WAVEFORMATEX wEx = { 0 };
 	wEx.wFormatTag = WAVE_FORMAT_PCM;
-	wEx.nChannels = 1;
+	wEx.nChannels = (WORD)CH;
 	wEx.nSamplesPerSec = SR;
 	wEx.wBitsPerSample = BPS;
 	wEx.nBlockAlign = (wEx.wBitsPerSample / 8) * wEx.nChannels;
