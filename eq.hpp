@@ -429,6 +429,7 @@ namespace EQ
 		}
 
 
+		HWND PaintWindow = 0;
 		virtual void Paint(ID2D1Factory* fact, ID2D1RenderTarget* r, RECT rc) = 0;
 		virtual void LeftDown(WPARAM ww, LPARAM ll) = 0;
 		virtual void RightDown(WPARAM ww, LPARAM ll) = 0;
@@ -640,6 +641,7 @@ namespace EQ
 
 						z->fa->CreateHwndRenderTarget(D2D1::RenderTargetProperties(), D2D1::HwndRenderTargetProperties(hh, D2D1::SizeU(rc.right - rc.left, rc.bottom - rc.top)), &z->d);
 					}
+					z->c->PaintWindow = hh;
 					z->d->BeginDraw();
 					z->c->Paint(z->fa, z->d, rc);
 					[[maybe_unused]] auto hr = z->d->EndDraw();
@@ -1884,7 +1886,7 @@ namespace EQ
 		virtual bool Run2(int SR, int nch, float** in, int ons, float** out)
 		{
 			LastSR = SR;
-			if (ShowDataMode > 0 && IsWindow(MainWindow))
+			if (ShowDataMode > 0 && IsWindow(PaintWindow))
 			{
 				std::lock_guard<std::recursive_mutex> lg(mu);
 				dins.resize(nch);
@@ -2065,7 +2067,7 @@ namespace EQ
 			}
 
 
-			if (ShowDataMode > 0 && IsWindow(MainWindow))
+			if (ShowDataMode > 0 && IsWindow(PaintWindow))
 			{
 				std::lock_guard<std::recursive_mutex> lg(mu);
 				douts.resize(nch);

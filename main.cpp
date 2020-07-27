@@ -1,13 +1,14 @@
 #include "stdafx.h"
 
-HWND MainWindow = 0;
-HINSTANCE hAppInstance = 0;
 
 #include "xml\\xml3all.h"
 
 #include "alldspfilters_h.hpp"
 #include "alldspfilters_c.cpp"
 #include "eq.hpp"
+
+HWND MainWindow = 0;
+HINSTANCE hAppInstance = 0;
 
 // ----
 const TCHAR* ttitle = _T("Equalizer Design");
@@ -476,6 +477,7 @@ LRESULT CALLBACK Main_DP(HWND hh, UINT mm, WPARAM ww, LPARAM ll)
 				std::lock_guard<std::recursive_mutex> lg(mu);
 				prx->Build(SR);
 			}
+			prx->PaintWindow = hh;
 			prx->Paint(fa,d, rc);
 			d->EndDraw();
 			EndPaint(hh, &ps);
