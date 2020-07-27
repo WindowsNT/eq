@@ -17,10 +17,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\DSPFilters\DSPFilters\source\alldspfilters.hpp">
+    <ClInclude Include="stdafx.h">
       <Filter>Code</Filter>
     </ClInclude>
-    <ClInclude Include="stdafx.h">
+    <ClInclude Include="eq.hpp">
       <Filter>Code</Filter>
     </ClInclude>
   </ItemGroup>

@@ -1,25 +1,16 @@
-//
-
-extern "C" {
-#include "biquad.h"
-}
 
 #ifdef TURBO_PLAY
-
-#include "..\\\AED\\\fft.hpp"
-#include "..\\fft-real-master\\\FFTReal.h"
-#include "..\\DSPFilters\\DSPFilters\\include\\DspFilters\\Elliptic.h"
-#include "..\\DSPFilters\\DSPFilters\\include\\DspFilters\\ChebyshevII.h"
-#include "..\\DSPFilters\\DSPFilters\\include\\DspFilters\\ChebyshevI.h"
-#include "..\\DSPFilters\\DSPFilters\\include\\DspFilters\\Butterworth.h"
 #else
-#include "alldspfilters.hpp"
 #include "fft.hpp"
 #define shared_ptr_debug shared_ptr
 #define make_shared_debug make_shared
+#include "alldspfilters.hpp"
 #endif
 
 #pragma warning(disable:4100)
+extern "C" {
+#include "biquad.h"
+}
 
 namespace EQ
 {
@@ -38,7 +29,7 @@ namespace EQ
 	public:
 
 		virtual void RedrawRequest(EQ* pr) = 0;
-		virtual void Dirty(EQ* e,bool) = 0;
+		virtual void Dirty(EQ* e, bool) = 0;
 
 #ifdef ENABLE_SHARED_PTR_DEBUG
 		virtual ~EQCALLBACK()
@@ -254,72 +245,72 @@ namespace EQ
 			static ASKTEXT* as = 0;
 			switch (mm)
 			{
-				case WM_INITDIALOG:
+			case WM_INITDIALOG:
+			{
+				as = (ASKTEXT*)ll;
+				SetWindowText(hh, as->ti);
+				if (as->P != 2)
 				{
-					as = (ASKTEXT*)ll;
-					SetWindowText(hh, as->ti);
-					if (as->P != 2)
-					{
-						SetWindowText(GetDlgItem(hh, 101), as->as);
-						if (as->re)
-							SetWindowText(GetDlgItem(hh, 102), as->re);
-						if (as->re2)
-							SetWindowText(GetDlgItem(hh, 102), as->re2->c_str());
-					}
-					else
-						SetWindowText(GetDlgItem(hh, 701), as->as);
-					if (as->P == 1)
-					{
-						auto w = GetWindowLongPtr(GetDlgItem(hh, 102), GWL_STYLE);
-						w |= ES_PASSWORD;
-						SetWindowLongPtr(GetDlgItem(hh, 102), GWL_STYLE, w);
-					}
-					return true;
+					SetWindowText(GetDlgItem(hh, 101), as->as);
+					if (as->re)
+						SetWindowText(GetDlgItem(hh, 102), as->re);
+					if (as->re2)
+						SetWindowText(GetDlgItem(hh, 102), as->re2->c_str());
 				}
-				case WM_COMMAND:
+				else
+					SetWindowText(GetDlgItem(hh, 701), as->as);
+				if (as->P == 1)
 				{
-					if (LOWORD(ww) == IDOK)
+					auto w = GetWindowLongPtr(GetDlgItem(hh, 102), GWL_STYLE);
+					w |= ES_PASSWORD;
+					SetWindowLongPtr(GetDlgItem(hh, 102), GWL_STYLE, w);
+				}
+				return true;
+			}
+			case WM_COMMAND:
+			{
+				if (LOWORD(ww) == IDOK)
+				{
+					wchar_t re1[1000] = { 0 };
+					wchar_t re2[1000] = { 0 };
+					//					MessageBox(0, L"foo", 0, 0);
+					if (as->P == 2)
 					{
-						wchar_t re1[1000] = { 0 };
-						wchar_t re2[1000] = { 0 };
-	//					MessageBox(0, L"foo", 0, 0);
-						if (as->P == 2)
+						GetWindowText(GetDlgItem(hh, 101), re1, 1000);
+						GetWindowText(GetDlgItem(hh, 102), re2, 1000);
+						if (wcscmp(re1, re2) != 0 || wcslen(re1) == 0)
 						{
-							GetWindowText(GetDlgItem(hh, 101), re1, 1000);
-							GetWindowText(GetDlgItem(hh, 102), re2, 1000);
-							if (wcscmp(re1, re2) != 0 || wcslen(re1) == 0)
-							{
-								SetWindowText(GetDlgItem(hh, 101), L"");
-								SetWindowText(GetDlgItem(hh, 102), L"");
-								SetFocus(GetDlgItem(hh, 101));
-								return 0;
-							}
-							wcscpy_s(as->re, 1000, re1);
-							EndDialog(hh, IDOK);
+							SetWindowText(GetDlgItem(hh, 101), L"");
+							SetWindowText(GetDlgItem(hh, 102), L"");
+							SetFocus(GetDlgItem(hh, 101));
 							return 0;
 						}
+						wcscpy_s(as->re, 1000, re1);
+						EndDialog(hh, IDOK);
+						return 0;
+					}
 
-						if (as->re2)
-						{
-							int lex = GetWindowTextLength(GetDlgItem(hh, 102));
-							vector<wchar_t> re(lex + 100);
-							GetWindowText(GetDlgItem(hh, 102), re.data(), lex + 100);
-							*as->re2 = re.data();
-							EndDialog(hh, IDOK);
-						}
-						else
-						{
-							GetWindowText(GetDlgItem(hh, 102), as->re, as->mx);
-							EndDialog(hh, IDOK);
-						}
-						return 0;
-					}
-					if (LOWORD(ww) == IDCANCEL)
+					if (as->re2)
 					{
-						EndDialog(hh, IDCANCEL);
-						return 0;
+						int lex = GetWindowTextLength(GetDlgItem(hh, 102));
+						vector<wchar_t> re(lex + 100);
+						GetWindowText(GetDlgItem(hh, 102), re.data(), lex + 100);
+						*as->re2 = re.data();
+						EndDialog(hh, IDOK);
 					}
+					else
+					{
+						GetWindowText(GetDlgItem(hh, 102), as->re, as->mx);
+						EndDialog(hh, IDOK);
+					}
+					return 0;
 				}
+				if (LOWORD(ww) == IDCANCEL)
+				{
+					EndDialog(hh, IDCANCEL);
+					return 0;
+				}
+			}
 			}
 			return 0;
 		}
@@ -334,7 +325,7 @@ namespace EQ
 
 		HCURSOR ArrowCursor = LoadCursor(0, IDC_ARROW);
 		HCURSOR ResizeCursor = LoadCursor(0, IDC_SIZENS);
-		
+
 		vector<shared_ptr_debug<EQCALLBACK>> cb;
 		D2D1_COLOR_F bg = { 0.1f,0.1f,0.1f,1.0f };
 		D2D1_COLOR_F whitecolor = { 1.0f,1.0f,1.0f,1.0f };
@@ -353,7 +344,7 @@ namespace EQ
 		CComPtr<ID2D1SolidColorBrush> BlackBrush;
 
 
-		template <typename T = float> bool InRect(D2D1_RECT_F & r, T x, T y)
+		template <typename T = float> bool InRect(D2D1_RECT_F& r, T x, T y)
 		{
 			if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom)
 				return true;
@@ -406,7 +397,7 @@ namespace EQ
 			GrayBrush = GetD2SolidBrush(p, graycolor);
 			YellowBrush = GetD2SolidBrush(p, yellowcolor);
 			BGBrush = GetD2SolidBrush(p, bg);
-			DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown * *)& WriteFactory);
+			DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED, __uuidof(IDWriteFactory), (IUnknown**)&WriteFactory);
 
 			LOGFONT lf;
 			GetObject(GetStockObject(DEFAULT_GUI_FONT), sizeof(lf), &lf);
@@ -427,25 +418,25 @@ namespace EQ
 		void Dirty(bool x)
 		{
 			for (auto cc : cb)
-				cc->Dirty(this,x);
+				cc->Dirty(this, x);
 		}
 
 
-		virtual void Paint(ID2D1Factory*fact, ID2D1RenderTarget* r, RECT rc) = 0;
+		virtual void Paint(ID2D1Factory* fact, ID2D1RenderTarget* r, RECT rc) = 0;
 		virtual void LeftDown(WPARAM ww, LPARAM ll) = 0;
 		virtual void RightDown(WPARAM ww, LPARAM ll) = 0;
 		virtual void LeftUp(WPARAM ww, LPARAM ll) = 0;
 		virtual void MouseMove(WPARAM ww, LPARAM ll) = 0;
 		virtual void MouseWheel(WPARAM ww, LPARAM ll) = 0;
 		virtual void KeyDown(WPARAM ww, LPARAM ll) = 0;
-		virtual void LeftDoubleClick(WPARAM ww,LPARAM ll) = 0;
+		virtual void LeftDoubleClick(WPARAM ww, LPARAM ll) = 0;
 		D2D1_RECT_F rc = {};
 		virtual void Ser(XML3::XMLElement& e) = 0;
 		virtual void Unser(XML3::XMLElement& e) = 0;
 
 		virtual void Prepare(int SR) = 0;
 		virtual void Run(int SR, float* in, int ns, float* out) = 0;
-		virtual bool Run2(int SR, int nch,float** in, int ns, float** out) = 0;
+		virtual bool Run2(int SR, int nch, float** in, int ns, float** out) = 0;
 		virtual void Build(int SR) = 0;
 
 		int Max = 22000;
@@ -493,7 +484,7 @@ namespace EQ
 			return 2.0f - 2.0f * Y / (rc.bottom - rc.top);
 		}
 
-		float V2dB(float V,bool NeedNZ)
+		float V2dB(float V, bool NeedNZ)
 		{
 			float dBX = 0;
 			if (V < 1)
@@ -528,7 +519,7 @@ namespace EQ
 			return a;
 		}
 
-		void ShowInDialog(HWND hh,int SR)
+		void ShowInDialog(HWND hh, int SR)
 		{
 			struct Z
 			{
@@ -549,119 +540,119 @@ namespace EQ
 
 				switch (mm)
 				{
-					case WM_INITDIALOG:
-					{
-						SetWindowLongPtr(hh, GWLP_USERDATA, ll);
-						z = (Z*)GetWindowLongPtr(hh, GWLP_USERDATA);
-						c = z->c;
-						
+				case WM_INITDIALOG:
+				{
+					SetWindowLongPtr(hh, GWLP_USERDATA, ll);
+					z = (Z*)GetWindowLongPtr(hh, GWLP_USERDATA);
+					c = z->c;
 
-						c->SetWindow(hh);
-						auto mmd = std::make_shared_debug<MMCB>();
-						mmd->hC = hh;
-						mmd->SR = z->SR;
-						c->AddCallback(mmd);
-						SetTimer(hh, 1, 100, 0);
-						return true;
-					}
-					case WM_CLOSE:
-					{
-						KillTimer(hh, 1);
-						EndDialog(hh, 0);
-						return 0;
-					}
-					case WM_KEYDOWN:
-					case WM_SYSKEYDOWN:
-					{
-						c->KeyDown(ww, ll);
-						return 0;
-					}
 
-					case WM_MOUSEMOVE:
-					{
-						c->MouseMove(ww, ll);
-						return 0;
-					}
-					case WM_MOUSEWHEEL:
-					{
-						c->MouseWheel(ww, ll);
-						return 0;
-					}
-					case WM_LBUTTONDOWN:
-					{
-						c->LeftDown(ww, ll);
-						return 0;
-					}
-					case WM_RBUTTONDOWN:
-					{
-						c->RightDown(ww, ll);
-						return 0;
-					}
-					case WM_LBUTTONUP:
-					{
-						c->LeftUp(ww, ll);
-						return 0;
-					}
-					case WM_LBUTTONDBLCLK:
-					{
-						c->LeftDoubleClick(ww, ll);
-						return 0;
-					}
-					case WM_ERASEBKGND:
-					{
-						return 1;
-					}
-					case WM_TIMER:
-					{
-						bool Mo = ((GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0);
-						if (!Mo)
-						{
-							InvalidateRect(hh, 0, false);
-							UpdateWindow(hh);
-						}
-						return 0;
-					}
+					c->SetWindow(hh);
+					auto mmd = std::make_shared_debug<MMCB>();
+					mmd->hC = hh;
+					mmd->SR = z->SR;
+					c->AddCallback(mmd);
+					SetTimer(hh, 1, 100, 0);
+					return true;
+				}
+				case WM_CLOSE:
+				{
+					KillTimer(hh, 1);
+					EndDialog(hh, 0);
+					return 0;
+				}
+				case WM_KEYDOWN:
+				case WM_SYSKEYDOWN:
+				{
+					c->KeyDown(ww, ll);
+					return 0;
+				}
 
-					case WM_PAINT:
+				case WM_MOUSEMOVE:
+				{
+					c->MouseMove(ww, ll);
+					return 0;
+				}
+				case WM_MOUSEWHEEL:
+				{
+					c->MouseWheel(ww, ll);
+					return 0;
+				}
+				case WM_LBUTTONDOWN:
+				{
+					c->LeftDown(ww, ll);
+					return 0;
+				}
+				case WM_RBUTTONDOWN:
+				{
+					c->RightDown(ww, ll);
+					return 0;
+				}
+				case WM_LBUTTONUP:
+				{
+					c->LeftUp(ww, ll);
+					return 0;
+				}
+				case WM_LBUTTONDBLCLK:
+				{
+					c->LeftDoubleClick(ww, ll);
+					return 0;
+				}
+				case WM_ERASEBKGND:
+				{
+					return 1;
+				}
+				case WM_TIMER:
+				{
+					bool Mo = ((GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0);
+					if (!Mo)
 					{
-						PAINTSTRUCT ps;
-						BeginPaint(hh, &ps);
-
-						RECT rc;
-						GetClientRect(hh, &rc);
-						if (!z->fa)
-							D2D1CreateFactory(D2D1_FACTORY_TYPE::D2D1_FACTORY_TYPE_MULTI_THREADED, &z->fa);
-						if (!z->d)
-						{
-							//				D2D1_RENDER_TARGET_PROPERTIES p;
-							D2D1_HWND_RENDER_TARGET_PROPERTIES hp;
-							hp.hwnd = hh;
-							hp.pixelSize.width = rc.right;
-							hp.pixelSize.height = rc.bottom;
-							z->d.Release();
-
-							z->fa->CreateHwndRenderTarget(D2D1::RenderTargetProperties(), D2D1::HwndRenderTargetProperties(hh, D2D1::SizeU(rc.right - rc.left, rc.bottom - rc.top)), &z->d);
-						}
-						z->d->BeginDraw();
-						z->c->Paint(z->fa, z->d, rc);
-						[[maybe_unused]] auto hr = z->d->EndDraw();
-						EndPaint(hh, &ps);
-						return 0;
+						InvalidateRect(hh, 0, false);
+						UpdateWindow(hh);
 					}
+					return 0;
+				}
 
-					case WM_SIZE:
+				case WM_PAINT:
+				{
+					PAINTSTRUCT ps;
+					BeginPaint(hh, &ps);
+
+					RECT rc;
+					GetClientRect(hh, &rc);
+					if (!z->fa)
+						D2D1CreateFactory(D2D1_FACTORY_TYPE::D2D1_FACTORY_TYPE_MULTI_THREADED, &z->fa);
+					if (!z->d)
 					{
-						if (!z->d)
-							return 0;
+						//				D2D1_RENDER_TARGET_PROPERTIES p;
+						D2D1_HWND_RENDER_TARGET_PROPERTIES hp;
+						hp.hwnd = hh;
+						hp.pixelSize.width = rc.right;
+						hp.pixelSize.height = rc.bottom;
+						z->d.Release();
 
-						RECT rc;
-						GetClientRect(hh, &rc);
-						D2D1_SIZE_U u;
-						u.width = rc.right;
-						u.height = rc.bottom;
-						z->d->Resize(u);
-						return 0;
+						z->fa->CreateHwndRenderTarget(D2D1::RenderTargetProperties(), D2D1::HwndRenderTargetProperties(hh, D2D1::SizeU(rc.right - rc.left, rc.bottom - rc.top)), &z->d);
 					}
+					z->d->BeginDraw();
+					z->c->Paint(z->fa, z->d, rc);
+					[[maybe_unused]] auto hr = z->d->EndDraw();
+					EndPaint(hh, &ps);
+					return 0;
+				}
+
+				case WM_SIZE:
+				{
+					if (!z->d)
+						return 0;
+
+					RECT rc;
+					GetClientRect(hh, &rc);
+					D2D1_SIZE_U u;
+					u.width = rc.right;
+					u.height = rc.bottom;
+					z->d->Resize(u);
+					return 0;
+				}
 
 				}
 				return 0;
@@ -669,7 +660,7 @@ namespace EQ
 			Z z;
 			z.c = this;
 			z.SR = SR;
-			DialogBoxIndirectParam(0, (LPCDLGTEMPLATE)res, hh ? hh : hParent, dp, (LPARAM)& z);
+			DialogBoxIndirectParam(0, (LPCDLGTEMPLATE)res, hh ? hh : hParent, dp, (LPARAM)&z);
 			DestroyBrushes();
 		}
 
@@ -856,140 +847,140 @@ namespace EQ
 			sf = 0;
 			switch (Type)
 			{
-				case 0: // Low Pass
+			case 0: // Low Pass
+			{
+				sf_lowpass(&st, SR, fr, 0);
+
+				// And the DSP
+				if (SpecialType == 0)
 				{
-					sf_lowpass(&st, SR, fr,0);
-					
-					// And the DSP
-					if (SpecialType == 0)
-					{
-						// Keep Biquad
-					}
-					if (SpecialType == 1)
-					{
-						auto sf2 = std::make_shared_debug<ButtLP>();
-						sf2->setup(Order, SR, fr);
-						sf = sf2;
-					}
-					if (SpecialType == 2)
-					{
-						auto sf2 = std::make_shared_debug<Che1LP>();
-						sf2->setup(Order, SR, fr,ripple);
-						sf = sf2;
-					}
-					if (SpecialType == 3)
-					{
-						auto sf2 = std::make_shared_debug<Che2LP>();
-						sf2->setup(Order, SR, fr, ripple);
-						sf = sf2;
-					}
-					if (SpecialType == 4)
-					{
-						auto sf2 = std::make_shared_debug<EllLP>();
-						sf2->setup(Order, SR, fr, ripple,rolloff);
-						sf = sf2;
-					}
-
-					break;
+					// Keep Biquad
 				}
-				case 1: // High Pass
+				if (SpecialType == 1)
 				{
-					sf_highpass(&st, SR, fr, 0);
-
-					// And the DSP
-					if (SpecialType == 0)
-					{
-						// Keep Biquad
-					}
-					if (SpecialType == 1)
-					{
-						auto sf2 = std::make_shared_debug<ButtHP>();
-						sf2->setup(Order, SR, fr);
-						sf = sf2;
-					}
-					if (SpecialType == 2)
-					{
-						auto sf2 = std::make_shared_debug<Che1HP>();
-						sf2->setup(Order, SR, fr, ripple);
-						sf = sf2;
-					}
-					if (SpecialType == 3)
-					{
-						auto sf2 = std::make_shared_debug<Che2HP>();
-						sf2->setup(Order, SR, fr, ripple);
-						sf = sf2;
-					}
-					if (SpecialType == 4)
-					{
-						auto sf2 = std::make_shared_debug<EllHP>();
-						sf2->setup(Order, SR, fr, ripple, rolloff);
-						sf = sf2;
-					}
-
-					break;
+					auto sf2 = std::make_shared_debug<ButtLP>();
+					sf2->setup(Order, SR, fr);
+					sf = sf2;
 				}
-				case 2: // Low Shelf
+				if (SpecialType == 2)
 				{
-					sf_lowshelf(&st, SR, fr, Q,dB);
-
-					// And the DSP
-					if (SpecialType == 6)
-					{
-						auto sf2 = std::make_shared_debug<ButtLPs>();
-						sf2->setup(Order, SR, fr,dB);
-						sf = sf2;
-					}
-					if (SpecialType == 7)
-					{
-						auto sf2 = std::make_shared_debug<Che1LPs>();
-						sf2->setup(Order, SR, fr, dB,ripple);
-						sf = sf2;
-					}
-					if (SpecialType == 8)
-					{
-						auto sf2 = std::make_shared_debug<Che2LPs>();
-						sf2->setup(Order, SR, fr,dB,ripple);
-						sf = sf2;
-					}
-
-					break;
+					auto sf2 = std::make_shared_debug<Che1LP>();
+					sf2->setup(Order, SR, fr, ripple);
+					sf = sf2;
 				}
-				case 3: // High Shelf
+				if (SpecialType == 3)
 				{
-					sf_highshelf(&st, SR, fr, Q,dB);
-
-					// And the DSP
-					if (SpecialType == 6)
-					{
-						auto sf2 = std::make_shared_debug<ButtHPs>();
-						sf2->setup(Order, SR, fr, dB);
-						sf = sf2;
-					}
-					if (SpecialType == 7)
-					{
-						auto sf2 = std::make_shared_debug<Che1HPs>();
-						sf2->setup(Order, SR, fr, dB, ripple);
-						sf = sf2;
-					}
-					if (SpecialType == 8)
-					{
-						auto sf2 = std::make_shared_debug<Che2LPs>();
-						sf2->setup(Order, SR, fr, dB, ripple);
-						sf = sf2;
-					}
-
-					break;
+					auto sf2 = std::make_shared_debug<Che2LP>();
+					sf2->setup(Order, SR, fr, ripple);
+					sf = sf2;
 				}
-				case 4: // Notch
+				if (SpecialType == 4)
 				{
-					sf_notch(&st, SR, fr, Q);
-					break;
+					auto sf2 = std::make_shared_debug<EllLP>();
+					sf2->setup(Order, SR, fr, ripple, rolloff);
+					sf = sf2;
 				}
-				case 5: // peaking
+
+				break;
+			}
+			case 1: // High Pass
+			{
+				sf_highpass(&st, SR, fr, 0);
+
+				// And the DSP
+				if (SpecialType == 0)
 				{
-					sf_peaking(&st, SR, fr, Q,dB);
-					break;
+					// Keep Biquad
 				}
+				if (SpecialType == 1)
+				{
+					auto sf2 = std::make_shared_debug<ButtHP>();
+					sf2->setup(Order, SR, fr);
+					sf = sf2;
+				}
+				if (SpecialType == 2)
+				{
+					auto sf2 = std::make_shared_debug<Che1HP>();
+					sf2->setup(Order, SR, fr, ripple);
+					sf = sf2;
+				}
+				if (SpecialType == 3)
+				{
+					auto sf2 = std::make_shared_debug<Che2HP>();
+					sf2->setup(Order, SR, fr, ripple);
+					sf = sf2;
+				}
+				if (SpecialType == 4)
+				{
+					auto sf2 = std::make_shared_debug<EllHP>();
+					sf2->setup(Order, SR, fr, ripple, rolloff);
+					sf = sf2;
+				}
+
+				break;
+			}
+			case 2: // Low Shelf
+			{
+				sf_lowshelf(&st, SR, fr, Q, dB);
+
+				// And the DSP
+				if (SpecialType == 6)
+				{
+					auto sf2 = std::make_shared_debug<ButtLPs>();
+					sf2->setup(Order, SR, fr, dB);
+					sf = sf2;
+				}
+				if (SpecialType == 7)
+				{
+					auto sf2 = std::make_shared_debug<Che1LPs>();
+					sf2->setup(Order, SR, fr, dB, ripple);
+					sf = sf2;
+				}
+				if (SpecialType == 8)
+				{
+					auto sf2 = std::make_shared_debug<Che2LPs>();
+					sf2->setup(Order, SR, fr, dB, ripple);
+					sf = sf2;
+				}
+
+				break;
+			}
+			case 3: // High Shelf
+			{
+				sf_highshelf(&st, SR, fr, Q, dB);
+
+				// And the DSP
+				if (SpecialType == 6)
+				{
+					auto sf2 = std::make_shared_debug<ButtHPs>();
+					sf2->setup(Order, SR, fr, dB);
+					sf = sf2;
+				}
+				if (SpecialType == 7)
+				{
+					auto sf2 = std::make_shared_debug<Che1HPs>();
+					sf2->setup(Order, SR, fr, dB, ripple);
+					sf = sf2;
+				}
+				if (SpecialType == 8)
+				{
+					auto sf2 = std::make_shared_debug<Che2LPs>();
+					sf2->setup(Order, SR, fr, dB, ripple);
+					sf = sf2;
+				}
+
+				break;
+			}
+			case 4: // Notch
+			{
+				sf_notch(&st, SR, fr, Q);
+				break;
+			}
+			case 5: // peaking
+			{
+				sf_peaking(&st, SR, fr, Q, dB);
+				break;
+			}
 			}
 		}
 
@@ -1044,7 +1035,7 @@ namespace EQ
 						float f1 = f.fr * (sqrt(1.0f + (1.0f / (4.0f * f.Q * f.Q))) - 1.0f / (2.0f * f.Q));
 						float f2 = f.fr * (sqrt(1.0f + (1.0f / (4.0f * f.Q * f.Q))) + 1.0f / (2.0f * f.Q));
 
-						swprintf_s(y, 1000, L"Peak filter %.1f Hz, %.1f dB, Q = %.1f (Range %.1f - %.1f)", f.fr, f.dB, f.Q,f1,f2);
+						swprintf_s(y, 1000, L"Peak filter %.1f Hz, %.1f dB, Q = %.1f (Range %.1f - %.1f)", f.fr, f.dB, f.Q, f1, f2);
 					}
 					else
 					{
@@ -1055,15 +1046,15 @@ namespace EQ
 							if (f.SpecialType == 1)
 								swprintf_s(y, 1000, L"Butterworth low cut order %i %.1f", f.Order, f.fr);
 							if (f.SpecialType == 2)
-								swprintf_s(y, 1000, L"Chebyshev I low cut order %i %.1f Hz ripple %.1f dB", f.Order, f.fr,f.ripple);
+								swprintf_s(y, 1000, L"Chebyshev I low cut order %i %.1f Hz ripple %.1f dB", f.Order, f.fr, f.ripple);
 							if (f.SpecialType == 3)
 								swprintf_s(y, 1000, L"Chebyshev II low cut order %i %.1f Hz ripple %.1f dB", f.Order, f.fr, f.ripple);
 							if (f.SpecialType == 4)
-								swprintf_s(y, 1000, L"Elliptic low cut order %i %.1f Hz ripple %.1f dB rolloff %.1f", f.Order, f.fr,f.ripple,f.rolloff);
+								swprintf_s(y, 1000, L"Elliptic low cut order %i %.1f Hz ripple %.1f dB rolloff %.1f", f.Order, f.fr, f.ripple, f.rolloff);
 
 
 							if (f.SpecialType == 5)
-								swprintf_s(y, 1000, L"Biquad low shelf order %i %.1f dB %.1f Hz", f.Order,  f.dB,f.fr);
+								swprintf_s(y, 1000, L"Biquad low shelf order %i %.1f dB %.1f Hz", f.Order, f.dB, f.fr);
 							if (f.SpecialType == 6)
 								swprintf_s(y, 1000, L"Butterworth low shelf order %i %.1f dB %.1f Hz", f.Order, f.dB, f.fr);
 							if (f.SpecialType == 7)
@@ -1200,7 +1191,7 @@ namespace EQ
 			fact->CreatePathGeometry(&pg);
 			pg->Open(&pgs);
 
-//			float xmiddle = (rc.right - rc.left) / 2.0f + rc.left;
+			//			float xmiddle = (rc.right - rc.left) / 2.0f + rc.left;
 			float ymiddle = (rc.bottom - rc.top) / 2.0f + rc.top;
 
 			// Filters
@@ -1213,8 +1204,8 @@ namespace EQ
 				D2D1_ELLIPSE e;
 				e.point.x = x;
 				e.point.y = y;
-				e.radiusX = (float)rad*2;
-				e.radiusY = (float)rad*2;
+				e.radiusX = (float)rad * 2;
+				e.radiusY = (float)rad * 2;
 				if (!f.A)
 				{
 					r->FillEllipse(e, GrayBrush);
@@ -1227,10 +1218,10 @@ namespace EQ
 						r->FillEllipse(e, WhiteBrush);
 				}
 
-				f.r.left = e.point.x - rad*2;
-				f.r.top = e.point.y - rad*2;
-				f.r.right = e.point.x + rad*2;
-				f.r.bottom = e.point.y + rad*2;
+				f.r.left = e.point.x - rad * 2;
+				f.r.top = e.point.y - rad * 2;
+				f.r.right = e.point.x + rad * 2;
+				f.r.bottom = e.point.y + rad * 2;
 
 				if (f.Type == 4 || f.Type == 5) // Peaking/Notch
 				{
@@ -1241,8 +1232,8 @@ namespace EQ
 					float z1 = Freq2X(f1);
 					float z2 = Freq2X(f2);
 
-//					r->FillRectangle({z1,e.point.y,z2,ymiddle}, YellowBrush);
-					pgs->BeginFigure({z1,ymiddle}, D2D1_FIGURE_BEGIN_HOLLOW);
+					//					r->FillRectangle({z1,e.point.y,z2,ymiddle}, YellowBrush);
+					pgs->BeginFigure({ z1,ymiddle }, D2D1_FIGURE_BEGIN_HOLLOW);
 					D2D1_QUADRATIC_BEZIER_SEGMENT b1;
 					b1.point2 = e.point;
 					b1.point1.x = e.point.x;
@@ -1284,36 +1275,36 @@ namespace EQ
 			}
 
 			pgs->Close();
-			r->DrawGeometry(pg, YellowBrush,2.5f);
-			
-			PaintTop(r,rrc);
+			r->DrawGeometry(pg, YellowBrush, 2.5f);
 
-/*			// Paint the wave
-			if (LastSR >0)
-			{
-				int BufferLe = 1;
-				if (din.size() < LastSR)
-					din.resize(LastSR);
-				if (dout.size() < LastSR)
-					dout.resize(LastSR);
+			PaintTop(r, rrc);
 
-				if (true)
-				{
-					D2D1_RECT_F rc2 = {};
-					rc2.bottom = rc.bottom / 2.0f;
-					rc2.right = rc.right;
-					if (din.size() >= LastSR * BufferLe)
-					{
-						CComPtr<ID2D1Factory> fa;
-						r->GetFactory(&fa);
-						DrawWave(fa, r, rc2, 0, YellowBrush, 0, din.data(), LastSR  * BufferLe, 1);
-						din.erase(din.begin(), din.begin() + LastSR);
-					}
+			/*			// Paint the wave
+						if (LastSR >0)
+						{
+							int BufferLe = 1;
+							if (din.size() < LastSR)
+								din.resize(LastSR);
+							if (dout.size() < LastSR)
+								dout.resize(LastSR);
 
-				}
+							if (true)
+							{
+								D2D1_RECT_F rc2 = {};
+								rc2.bottom = rc.bottom / 2.0f;
+								rc2.right = rc.right;
+								if (din.size() >= LastSR * BufferLe)
+								{
+									CComPtr<ID2D1Factory> fa;
+									r->GetFactory(&fa);
+									DrawWave(fa, r, rc2, 0, YellowBrush, 0, din.data(), LastSR  * BufferLe, 1);
+									din.erase(din.begin(), din.begin() + LastSR);
+								}
 
-			}
-*/
+							}
+
+						}
+			*/
 		}
 
 		float X2Freqr(float x)
@@ -1329,13 +1320,13 @@ namespace EQ
 			// in width, Max
 			// ? ,       f
 //			return (rc.right - rc.left) * f / Max;
-			return (float)((rc.right - rc.left)*log(f - 20)/log(Max));
+			return (float)((rc.right - rc.left) * log(f - 20) / log(Max));
 		}
 
 
-		int FilterHitTest(float x,float y)
+		int FilterHitTest(float x, float y)
 		{
-			for (size_t i = 0 ; i < filters.size() ; i++)
+			for (size_t i = 0; i < filters.size(); i++)
 			{
 				auto& f = filters[i];
 				if (InRect<>(f.r, x, y))
@@ -1374,13 +1365,13 @@ namespace EQ
 				HMENU hPr = CreatePopupMenu();
 				if (filters[h].SpecialFilter == 1)
 				{
-//					AppendMenu(hPr, MF_STRING, 401, L"Biquad Low cut");
+					//					AppendMenu(hPr, MF_STRING, 401, L"Biquad Low cut");
 					AppendMenu(hPr, MF_STRING, 402, L"Butterworth Low cut");
 					AppendMenu(hPr, MF_STRING, 403, L"Chebyshev I Low cut");
 					AppendMenu(hPr, MF_STRING, 404, L"Chebyshev II Low cut");
 					AppendMenu(hPr, MF_STRING, 405, L"Elliptic Low cut");
 
-//					AppendMenu(hPr, MF_STRING, 406, L"Biquad Low shelf");
+					//					AppendMenu(hPr, MF_STRING, 406, L"Biquad Low shelf");
 					AppendMenu(hPr, MF_STRING, 407, L"Butterworth Low shelf");
 					AppendMenu(hPr, MF_STRING, 408, L"Chebyshev I Low shelf");
 					AppendMenu(hPr, MF_STRING, 409, L"Chebyshev II Low shelf");
@@ -1389,13 +1380,13 @@ namespace EQ
 				}
 				if (filters[h].SpecialFilter == 2)
 				{
-//					AppendMenu(hPr, MF_STRING, 401, L"Biquad High cut");
+					//					AppendMenu(hPr, MF_STRING, 401, L"Biquad High cut");
 					AppendMenu(hPr, MF_STRING, 402, L"Butterworth High cut");
 					AppendMenu(hPr, MF_STRING, 403, L"Chebyshev I High cut");
 					AppendMenu(hPr, MF_STRING, 404, L"Chebyshev II High cut");
 					AppendMenu(hPr, MF_STRING, 405, L"Elliptic High cut");
 
-//					AppendMenu(hPr, MF_STRING, 406, L"Biquad High shelf");
+					//					AppendMenu(hPr, MF_STRING, 406, L"Biquad High shelf");
 					AppendMenu(hPr, MF_STRING, 407, L"Butterworth High shelf");
 					AppendMenu(hPr, MF_STRING, 408, L"Chebyshev I High shelf");
 					AppendMenu(hPr, MF_STRING, 409, L"Chebyshev II High shelf");
@@ -1404,17 +1395,17 @@ namespace EQ
 				}
 				if (filters[h].SpecialFilter == 0)
 				{
-//					AppendMenu(hPr, MF_STRING, 102, L"Low cut");
-//					AppendMenu(hPr, MF_STRING, 101, L"High cut");
-//					AppendMenu(hPr, MF_STRING, 103, L"Low shelf");
-//					AppendMenu(hPr, MF_STRING, 104, L"High shelf");
-/*					AppendMenu(hPr, MF_STRING, 105, L"Notch");
-					AppendMenu(hPr, MF_STRING, 106, L"Peaking");
-					if (filters[h].Type == -1)
-						CheckMenuItem(hPr, 100, MF_CHECKED);
-					else
-						CheckMenuItem(hPr, 101 + filters[h].Type, MF_CHECKED);
-*/
+					//					AppendMenu(hPr, MF_STRING, 102, L"Low cut");
+					//					AppendMenu(hPr, MF_STRING, 101, L"High cut");
+					//					AppendMenu(hPr, MF_STRING, 103, L"Low shelf");
+					//					AppendMenu(hPr, MF_STRING, 104, L"High shelf");
+					/*					AppendMenu(hPr, MF_STRING, 105, L"Notch");
+										AppendMenu(hPr, MF_STRING, 106, L"Peaking");
+										if (filters[h].Type == -1)
+											CheckMenuItem(hPr, 100, MF_CHECKED);
+										else
+											CheckMenuItem(hPr, 101 + filters[h].Type, MF_CHECKED);
+					*/
 				}
 
 				if (filters[h].Type != -1)
@@ -1568,7 +1559,7 @@ namespace EQ
 
 				if (tcmd == 101)
 				{
-					filters[h].Type =  0;
+					filters[h].Type = 0;
 					filters[h].dB = 0;
 				}
 				if (tcmd == 102)
@@ -1780,7 +1771,7 @@ namespace EQ
 					{
 						f.fr = fr2;
 						if (f.Type > 1 && f.Type != -1 && f.Type != 4)
-							f.dB = V2dB(Y2V(y),f.SpecialFilter ? true : false);
+							f.dB = V2dB(Y2V(y), f.SpecialFilter ? true : false);
 						Dirty(true);
 						Redraw();
 					}
@@ -1865,14 +1856,14 @@ namespace EQ
 		virtual bool Run2(int SR, int nch, float** in, int ons, float** out)
 		{
 			LastSR = SR;
-/*			if (IsWindow(MainWindow))
-			{
-				std::lock_guard<std::recursive_mutex> lg(mu);
-				auto sz = din.size();
-				din.resize(sz + ons);
-				memcpy(din.data() + sz, in[0], ons * sizeof(float));
-			}
-*/
+			/*			if (IsWindow(MainWindow))
+						{
+							std::lock_guard<std::recursive_mutex> lg(mu);
+							auto sz = din.size();
+							din.resize(sz + ons);
+							memcpy(din.data() + sz, in[0], ons * sizeof(float));
+						}
+			*/
 
 			if (filters.empty())
 				return false;
@@ -1895,7 +1886,7 @@ namespace EQ
 					if (b.SpecialFilter == 1) // Low cut - this is the first filter
 					{
 						// Copy clear to out
-						for(int i = 0 ; i < nch ; i++)
+						for (int i = 0; i < nch; i++)
 							memcpy(out[i], in[i], ons * sizeof(float));
 
 						if (!b.A)
@@ -2022,17 +2013,17 @@ namespace EQ
 			}
 
 
-/*			if (IsWindow(MainWindow))
-			{
-				std::lock_guard<std::recursive_mutex> lg(mu);
-				auto sz = dout.size();
-				dout.resize(sz + ons);
-				memcpy(dout.data() + sz, out[0], ons * sizeof(float));
-			}
-			*/
+			/*			if (IsWindow(MainWindow))
+						{
+							std::lock_guard<std::recursive_mutex> lg(mu);
+							auto sz = dout.size();
+							dout.resize(sz + ons);
+							memcpy(dout.data() + sz, out[0], ons * sizeof(float));
+						}
+						*/
 			return true;
 		}
-		
+
 		std::vector<float> ch1;
 		std::vector<float> ch2;
 		std::vector<float> och1;
@@ -2052,19 +2043,19 @@ namespace EQ
 			st[1] = ch2.data();
 			ost[0] = och1.data();
 			ost[1] = och2.data();
-			Run2(SR, 2, (float**)st, ons,(float**)ost);
+			Run2(SR, 2, (float**)st, ons, (float**)ost);
 			memcpy(outd, och1.data(), ons * sizeof(float));
 		}
 
 		// Single channel
-		
+
 /*		virtual void Run(int SR, float* in, int ons, float* outd)
 		{
 			//auto nns = ons;
 			inb.resize(ons);
 			outb.resize(ons);
 
-		
+
 			return;
 		}
 */
@@ -2161,10 +2152,10 @@ namespace EQ
 			// Change Q
 			for (auto& f : bands)
 			{
-				if (InRect<>(f.r,x,y))
+				if (InRect<>(f.r, x, y))
 				{
 					bool Shift = ((GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0);
-					float dB = V2dB(f.V,false);
+					float dB = V2dB(f.V, false);
 
 					if (Shift)
 					{
@@ -2221,10 +2212,10 @@ namespace EQ
 				// In y, ?
 				b.V = (2 * y) / (rc.bottom - rc.top);
 				b.V = 2 - b.V;
-				
+
 				for (float dbs : { -15.0f, -12.0f, -6.0f, -3.0f, 0.0f, 3.0f, 6.0f, 12.0f, 15.0f })
 				{
-					float dB = V2dB(b.V,false);
+					float dB = V2dB(b.V, false);
 					if (fabs(dB - dbs) < 0.3f)
 					{
 						b.V = dB2V(dbs);
@@ -2241,7 +2232,7 @@ namespace EQ
 			if (Left)
 				LeftDown(ww, ll);tp2
 				*/
-//			Redraw();
+				//			Redraw();
 		}
 
 		virtual void RightDown(WPARAM ww, LPARAM ll)
@@ -2265,126 +2256,126 @@ namespace EQ
 			AppendMenu(hPr, MF_STRING, 121, L"Post Gain...");
 			AppendMenu(hPr, MF_STRING | MF_SEPARATOR, 0, L"");
 */			AppendMenu(hPr, MF_STRING, 201, L"Melody boost");
-			AppendMenu(hPr, MF_STRING, 202, L"Vocal boost");
-			AppendMenu(hPr, MF_STRING, 203, L"Bass lift");
-			AppendMenu(hPr, MF_STRING, 204, L"Bass cut");
-			AppendMenu(hPr, MF_STRING, 205, L"High lift");
-			AppendMenu(hPr, MF_STRING, 206, L"High cut");
-			AppendMenu(hPr, MF_STRING, 207, L"Low pass");
-			AppendMenu(hPr, MF_STRING, 208, L"High pass");
+AppendMenu(hPr, MF_STRING, 202, L"Vocal boost");
+AppendMenu(hPr, MF_STRING, 203, L"Bass lift");
+AppendMenu(hPr, MF_STRING, 204, L"Bass cut");
+AppendMenu(hPr, MF_STRING, 205, L"High lift");
+AppendMenu(hPr, MF_STRING, 206, L"High cut");
+AppendMenu(hPr, MF_STRING, 207, L"Low pass");
+AppendMenu(hPr, MF_STRING, 208, L"High pass");
 
-			POINT po;
-			GetCursorPos(&po);
-			int tcmd = TrackPopupMenu(hPr, TPM_CENTERALIGN | TPM_RETURNCMD, po.x, po.y, 0, hParent, 0);
-			DestroyMenu(hPr);
-			if (tcmd == 0)
-				return;
+POINT po;
+GetCursorPos(&po);
+int tcmd = TrackPopupMenu(hPr, TPM_CENTERALIGN | TPM_RETURNCMD, po.x, po.y, 0, hParent, 0);
+DestroyMenu(hPr);
+if (tcmd == 0)
+return;
 
-			if (tcmd == 111) FFTSize = 1024;
-			if (tcmd == 112) FFTSize = 2048;
-			if (tcmd == 113) FFTSize = 4096;
+if (tcmd == 111) FFTSize = 1024;
+if (tcmd == 112) FFTSize = 2048;
+if (tcmd == 113) FFTSize = 4096;
 
-			if (tcmd == 101) FixBands(10);
-			if (tcmd == 102) FixBands(20);
-			if (tcmd == 103) FixBands(31);
+if (tcmd == 101) FixBands(10);
+if (tcmd == 102) FixBands(20);
+if (tcmd == 103) FixBands(31);
 
-			if (tcmd == 208)
-			{
-				FixBands(10);
-				for (size_t i = 0; i < bands.size(); i++)
-				{
-					if (i <= 4)
-						bands[i].V = dB2V(-48);
-				}
-			}
-			if (tcmd == 207)
-			{
-				FixBands(10);
-				for (size_t i = 0; i < bands.size(); i++)
-				{
-					if (i >= 5)
-						bands[i].V = dB2V(-48);
-				}
-			}
-			if (tcmd == 206)
-			{
-				FixBands(10);
-				for (size_t i = 0; i < bands.size(); i++)
-				{
-					if (i >= 8)
-						bands[i].V = dB2V(-5);
-					else
-						if (i >= 5)
-							bands[i].V = dB2V(-3);
-				}
-			}
-			if (tcmd == 205)
-			{
-				FixBands(10);
-				for (size_t i = 0; i < bands.size(); i++)
-				{
-					if (i >= 8)
-						bands[i].V = dB2V(5);
-					else
-						if (i >= 5)
-							bands[i].V = dB2V(3);
-				}
-			}
-			if (tcmd == 204)
-			{
-				FixBands(10);
-				for (size_t i = 0; i < bands.size(); i++)
-				{
-					if (i <= 1)
-						bands[i].V = dB2V(-5);
-					else
-						if (i <= 4)
-							bands[i].V = dB2V(-3);
-				}
-			}
-			if (tcmd == 203)
-			{
-				FixBands(10);
-				for (size_t i = 0; i < bands.size(); i++)
-				{
-					if (i <= 1)
-						bands[i].V = dB2V(5);
-					else
-					if (i <= 4)
-						bands[i].V = dB2V(3);
-				}
-			}
-			if (tcmd == 202)
-			{
-				FixBands(10);
-				for (size_t i = 0; i < bands.size(); i++)
-				{
-					if (i == 6) // 2Khhz
-						bands[i].V = dB2V(7);
-					else
-						bands[i].V = dB2V(0);
-				}
-			}
-			if (tcmd == 201)
-			{
-				FixBands(10);
-				for (size_t i = 0; i < bands.size(); i++)
-				{
-					if (i == 6) // 2Khhz
-						bands[i].V = dB2V(5);
-					else
-						if (i == 5) // 2Khhz
-							bands[i].V = dB2V(3);
-						else
-							if (i == 7) // 2Khhz
-								bands[i].V = dB2V(3);
-							else
-							bands[i].V = dB2V(0);
-				}
-			}
+if (tcmd == 208)
+{
+	FixBands(10);
+	for (size_t i = 0; i < bands.size(); i++)
+	{
+		if (i <= 4)
+			bands[i].V = dB2V(-48);
+	}
+}
+if (tcmd == 207)
+{
+	FixBands(10);
+	for (size_t i = 0; i < bands.size(); i++)
+	{
+		if (i >= 5)
+			bands[i].V = dB2V(-48);
+	}
+}
+if (tcmd == 206)
+{
+	FixBands(10);
+	for (size_t i = 0; i < bands.size(); i++)
+	{
+		if (i >= 8)
+			bands[i].V = dB2V(-5);
+		else
+			if (i >= 5)
+				bands[i].V = dB2V(-3);
+	}
+}
+if (tcmd == 205)
+{
+	FixBands(10);
+	for (size_t i = 0; i < bands.size(); i++)
+	{
+		if (i >= 8)
+			bands[i].V = dB2V(5);
+		else
+			if (i >= 5)
+				bands[i].V = dB2V(3);
+	}
+}
+if (tcmd == 204)
+{
+	FixBands(10);
+	for (size_t i = 0; i < bands.size(); i++)
+	{
+		if (i <= 1)
+			bands[i].V = dB2V(-5);
+		else
+			if (i <= 4)
+				bands[i].V = dB2V(-3);
+	}
+}
+if (tcmd == 203)
+{
+	FixBands(10);
+	for (size_t i = 0; i < bands.size(); i++)
+	{
+		if (i <= 1)
+			bands[i].V = dB2V(5);
+		else
+			if (i <= 4)
+				bands[i].V = dB2V(3);
+	}
+}
+if (tcmd == 202)
+{
+	FixBands(10);
+	for (size_t i = 0; i < bands.size(); i++)
+	{
+		if (i == 6) // 2Khhz
+			bands[i].V = dB2V(7);
+		else
+			bands[i].V = dB2V(0);
+	}
+}
+if (tcmd == 201)
+{
+	FixBands(10);
+	for (size_t i = 0; i < bands.size(); i++)
+	{
+		if (i == 6) // 2Khhz
+			bands[i].V = dB2V(5);
+		else
+			if (i == 5) // 2Khhz
+				bands[i].V = dB2V(3);
+			else
+				if (i == 7) // 2Khhz
+					bands[i].V = dB2V(3);
+				else
+					bands[i].V = dB2V(0);
+	}
+}
 
-			Dirty(true);
-			Redraw();
+Dirty(true);
+Redraw();
 		}
 
 		virtual void LeftDown(WPARAM ww, LPARAM ll)
@@ -2446,7 +2437,7 @@ namespace EQ
 			{
 				bands.clear();
 				bands.resize(n);
-//				float st = 20.0f;
+				//				float st = 20.0f;
 				bands[0].from = 0;
 
 				float b31[] = { 20,25,31.5,40,50 , 63 , 80 , 100 , 125 , 160 , 200 , 250 , 315 , 400 , 500 , 630 , 800 , 1000 , 1250 , 1600 , 2000 , 2500 , 3150 , 4000 , 5000 , 6300 , 8000 , 10000 , 12500 , 16000 , 20000 };
@@ -2454,14 +2445,14 @@ namespace EQ
 				for (int i = 0; i < n; i++)
 				{
 					bands[i].to = b31[i];
-//					st += st/3.0f;
+					//					st += st/3.0f;
 					if (i > 0)
 						bands[i].from = bands[i - 1].to;
 				}
 			}
 
 			if (!bands.empty())
-			bands[bands.size() - 1].to = (float)Max*2;
+				bands[bands.size() - 1].to = (float)Max * 2;
 		}
 
 		float Freq2X(float fr)
@@ -2548,10 +2539,10 @@ namespace EQ
 				re.left = p1.x;
 				re.top = p2.y;
 				re.right = p2.x;
-//				r->DrawLine(p1, p2, WhiteBrush);
+				//				r->DrawLine(p1, p2, WhiteBrush);
 				p1.y += j * 2;
 				p2.y += j * 2;
-//				r->DrawLine(p1, p2, WhiteBrush);
+				//				r->DrawLine(p1, p2, WhiteBrush);
 				re.bottom = p2.y;
 
 				r->FillRectangle(bands[i].r, GrayBrush);
@@ -2621,12 +2612,12 @@ namespace EQ
 				}
 
 				ly.bottom -= 20;
-//				swprintf_s(t, 1000, L"%s", HZString(bands[i].from, bands[i].to).c_str());
+				//				swprintf_s(t, 1000, L"%s", HZString(bands[i].from, bands[i].to).c_str());
 				swprintf_s(t, 1000, L"%s", HZString(bands[i].to).c_str());
 				r->DrawTextW(t, (UINT32)wcslen(t), Text, ly, WhiteBrush);
 				Text->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_NEAR);
 				ly.top += 20;
-				swprintf_s(t, 1000, L"%.0f dB", V2dB(bands[i].V,false));
+				swprintf_s(t, 1000, L"%.0f dB", V2dB(bands[i].V, false));
 				r->DrawTextW(t, (UINT32)wcslen(t), Text, ly, WhiteBrush);
 			}
 
@@ -2642,30 +2633,30 @@ namespace EQ
 				p1.x = rc.left;
 				p2.x = rc.right;
 				p2.y = (FLOAT)p.y;
-//				r->DrawLine(p1, p2, SelectBrush);
+				//				r->DrawLine(p1, p2, SelectBrush);
 
-				// In height , 2.0f
-				// in y , ?
-/*				float V = Y2V(p.y);
-				swprintf_s(t,1000,L"%.0f dB",V2dB(V));
+								// In height , 2.0f
+								// in y , ?
+				/*				float V = Y2V(p.y);
+								swprintf_s(t,1000,L"%.0f dB",V2dB(V));
 
-				D2D1_RECT_F ly;
-				ly.left = p.x + 35;
-				ly.top = p.y - 35;
-				ly.right = ly.left + 100;
-				ly.bottom = ly.top + 100;
-				Text->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
-				r->DrawTextW(t, wcslen(t), Text, ly,WhiteBrush);
-				ly.top = p.y + 35;
-				ly.bottom = ly.top + 100;
-				swprintf_s(t, 1000, L"%s", HZString(X2Freq(p.x)).c_str());
-				r->DrawTextW(t, wcslen(t), Text, ly, WhiteBrush);
-				*/
+								D2D1_RECT_F ly;
+								ly.left = p.x + 35;
+								ly.top = p.y - 35;
+								ly.right = ly.left + 100;
+								ly.bottom = ly.top + 100;
+								Text->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_LEADING);
+								r->DrawTextW(t, wcslen(t), Text, ly,WhiteBrush);
+								ly.top = p.y + 35;
+								ly.bottom = ly.top + 100;
+								swprintf_s(t, 1000, L"%s", HZString(X2Freq(p.x)).c_str());
+								r->DrawTextW(t, wcslen(t), Text, ly, WhiteBrush);
+								*/
 				p1.x = (FLOAT)p.x;
 				p1.y = rc.top;
 				p2.y = rc.bottom;
 				p2.x = (FLOAT)p1.x;
-//				r->DrawLine(p1, p2, SelectBrush);
+				//				r->DrawLine(p1, p2, SelectBrush);
 			}
 
 		}
@@ -2683,9 +2674,9 @@ namespace EQ
 				float f0 = b.from + BW / 2.0f;
 				float Q = f0 / BW;
 				sf_biquad_state_st& s1 = b.state;
-				sf_peaking(&s1, SR, f0, Q, V2dB(b.V,false));
+				sf_peaking(&s1, SR, f0, Q, V2dB(b.V, false));
 			}
-			
+
 		}
 
 
@@ -2714,7 +2705,7 @@ namespace EQ
 				return;
 			if (UseBiquad)
 			{
-//				auto nns = ons;
+				//				auto nns = ons;
 
 				if (NextRunBuild || (bands[0].state.b0 == 0 && bands[0].state.b1 == 0 && bands[0].state.b2 == 0))
 					Build(SR);
@@ -2748,90 +2739,90 @@ namespace EQ
 				return;
 			}
 
-// FFT based, obsolete
-/*			float rep[4096] = { 0 };
-//			float mags[4096] = { 0 };
+			// FFT based, obsolete
+			/*			float rep[4096] = { 0 };
+			//			float mags[4096] = { 0 };
 
-			// Make sure we have power of 2
-			int jo = 0;
-			for (;;)
-			{
-				if (ons <= 2)
-					break;
-				int ns = min(ons, FFTSize);
-				while (ns > 0 && (ns & (ns - 1)) != 0)
-					ns--;
-				if (ns <= 2)
-					break;
-
-				ffft::FFTReal <float> fft(ns);
-
-				// Transform
-				fft.do_fft(rep,in + jo);
-
-				auto GetF = [&](int sr, int i)
-				{
-					float x = (float)(sr * i);
-					return (float)(x / (float)FFTSize);
-				};
-
-
-
-				for (int j = 0; j < ns / 2; j++)
-				{
-					float fr = GetF(SR, j);
-
-					bool U = false;
-					// Find band
-					for (auto& b : bands)
-					{
-						if (b.from <= fr && b.to >= fr && b.V != 1.0f)
+						// Make sure we have power of 2
+						int jo = 0;
+						for (;;)
 						{
-							float aa = rep[j];
-							float bb = rep[ns/2 + j];
-							float mg = sqrt(aa * aa + bb * bb);
-							mg /= FFTSize;
-							float phase = atan2(bb, aa);
+							if (ons <= 2)
+								break;
+							int ns = min(ons, FFTSize);
+							while (ns > 0 && (ns & (ns - 1)) != 0)
+								ns--;
+							if (ns <= 2)
+								break;
 
-							float MAG_dB = 20 * log10(mg);
+							ffft::FFTReal <float> fft(ns);
 
-							float dB = V2dB(b.V);
-							MAG_dB += dB;
+							// Transform
+							fft.do_fft(rep,in + jo);
 
-							// log10mg = (db + 20log10mx)/20
-							mg = MAG_dB / 20.0f;
-							mg = pow(10.0f, mg);
+							auto GetF = [&](int sr, int i)
+							{
+								float x = (float)(sr * i);
+								return (float)(x / (float)FFTSize);
+							};
 
-							mg *= FFTSize;
 
-							rep[j] = ((float)(mg * cos(phase)));
-							rep[ns/2 + j] = ((float)(mg * sin(phase)));
 
-							aa = rep[j];
-							bb = rep[ns / 2 + j];
-							//float mgn = sqrt(aa * aa + bb * bb);
+							for (int j = 0; j < ns / 2; j++)
+							{
+								float fr = GetF(SR, j);
 
-							U = true;
-							break;
+								bool U = false;
+								// Find band
+								for (auto& b : bands)
+								{
+									if (b.from <= fr && b.to >= fr && b.V != 1.0f)
+									{
+										float aa = rep[j];
+										float bb = rep[ns/2 + j];
+										float mg = sqrt(aa * aa + bb * bb);
+										mg /= FFTSize;
+										float phase = atan2(bb, aa);
+
+										float MAG_dB = 20 * log10(mg);
+
+										float dB = V2dB(b.V);
+										MAG_dB += dB;
+
+										// log10mg = (db + 20log10mx)/20
+										mg = MAG_dB / 20.0f;
+										mg = pow(10.0f, mg);
+
+										mg *= FFTSize;
+
+										rep[j] = ((float)(mg * cos(phase)));
+										rep[ns/2 + j] = ((float)(mg * sin(phase)));
+
+										aa = rep[j];
+										bb = rep[ns / 2 + j];
+										//float mgn = sqrt(aa * aa + bb * bb);
+
+										U = true;
+										break;
+									}
+								}
+							}
+
+							fft.do_ifft(rep, outd + jo);
+							fft.rescale(outd + jo);
+
+							jo += ns;
+							ons -= ns;
 						}
-					}
-				}
-
-				fft.do_ifft(rep, outd + jo);
-				fft.rescale(outd + jo);
-
-				jo += ns;
-				ons -= ns;
-			}
 
 
-		// Normalize to 
-	//	AUDIOFX::Normalize<float>(1.0f,outd, nns);
-*/
+					// Normalize to
+				//	AUDIOFX::Normalize<float>(1.0f,outd, nns);
+			*/
 
 
 		}
-	
+
 
 
 	};

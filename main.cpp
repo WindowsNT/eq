@@ -4,6 +4,7 @@ HWND MainWindow = 0;
 HINSTANCE hAppInstance = 0;
 
 #include "xml\\xml3all.h"
+
 #include "eq.hpp"
 
 // ----
