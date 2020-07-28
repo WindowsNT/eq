@@ -62,7 +62,7 @@ namespace EQ
 	inline void FillPolygon(ID2D1Factory* f, ID2D1RenderTarget* r, D2D1_POINT_2F* p, size_t num, ID2D1Brush* b, FLOAT szx, bool Close)
 	{
 		// Convert POINT to D2D1_POINT_2F
-		if (!p || !num)
+		if (!p || !num || !b)
 			return;
 
 
@@ -118,6 +118,8 @@ namespace EQ
 			{
 				ns--;
 			}
+			while (ns > 4096)
+				ns /= 2;
 		}
 
 		if (Mode == 1)
@@ -201,7 +203,7 @@ namespace EQ
 
 					s /= (float)(ns * 2);
 
-					s *= 12.0f;
+					s *= 120.0f;
 					s = fabs(s);
 					S += s;
 				}
@@ -210,7 +212,6 @@ namespace EQ
 				r->FillRectangle(rr, fg);
 			}
 		}
-
 	}
 
 
@@ -773,23 +774,23 @@ namespace EQ
 
 	};
 
-	typedef Dsp::SimpleFilter<Dsp::Butterworth::LowPass<100>, 2> ButtLP;
-	typedef Dsp::SimpleFilter<Dsp::ChebyshevI::LowPass<100>, 2> Che1LP;
-	typedef Dsp::SimpleFilter<Dsp::ChebyshevII::LowPass<100>, 2> Che2LP;
-	typedef Dsp::SimpleFilter<Dsp::Elliptic::LowPass<100>, 2> EllLP;
+	typedef Dsp::SimpleFilter<Dsp::Butterworth::LowPass<100>, 10> ButtLP;
+	typedef Dsp::SimpleFilter<Dsp::ChebyshevI::LowPass<100>, 10> Che1LP;
+	typedef Dsp::SimpleFilter<Dsp::ChebyshevII::LowPass<100>, 10> Che2LP;
+	typedef Dsp::SimpleFilter<Dsp::Elliptic::LowPass<100>, 10> EllLP;
 
-	typedef Dsp::SimpleFilter<Dsp::Butterworth::HighPass<100>, 2> ButtHP;
-	typedef Dsp::SimpleFilter<Dsp::ChebyshevI::HighPass<100>, 2> Che1HP;
-	typedef Dsp::SimpleFilter<Dsp::ChebyshevII::HighPass<100>, 2> Che2HP;
-	typedef Dsp::SimpleFilter<Dsp::Elliptic::HighPass<100>, 2> EllHP;
+	typedef Dsp::SimpleFilter<Dsp::Butterworth::HighPass<100>, 10> ButtHP;
+	typedef Dsp::SimpleFilter<Dsp::ChebyshevI::HighPass<100>, 10> Che1HP;
+	typedef Dsp::SimpleFilter<Dsp::ChebyshevII::HighPass<100>, 10> Che2HP;
+	typedef Dsp::SimpleFilter<Dsp::Elliptic::HighPass<100>, 10> EllHP;
 
-	typedef Dsp::SimpleFilter<Dsp::Butterworth::LowShelf<100>, 2> ButtLPs;
-	typedef Dsp::SimpleFilter<Dsp::ChebyshevI::LowShelf<100>, 2> Che1LPs;
-	typedef Dsp::SimpleFilter<Dsp::ChebyshevII::LowShelf<100>, 2> Che2LPs;
+	typedef Dsp::SimpleFilter<Dsp::Butterworth::LowShelf<100>, 10> ButtLPs;
+	typedef Dsp::SimpleFilter<Dsp::ChebyshevI::LowShelf<100>, 10> Che1LPs;
+	typedef Dsp::SimpleFilter<Dsp::ChebyshevII::LowShelf<100>, 10> Che2LPs;
 
-	typedef Dsp::SimpleFilter<Dsp::Butterworth::HighShelf<100>, 2> ButtHPs;
-	typedef Dsp::SimpleFilter<Dsp::ChebyshevI::HighShelf<100>, 2> Che1HPs;
-	typedef Dsp::SimpleFilter<Dsp::ChebyshevII::HighShelf<100>, 2> Che2HPs;
+	typedef Dsp::SimpleFilter<Dsp::Butterworth::HighShelf<100>, 10> ButtHPs;
+	typedef Dsp::SimpleFilter<Dsp::ChebyshevI::HighShelf<100>, 10> Che1HPs;
+	typedef Dsp::SimpleFilter<Dsp::ChebyshevII::HighShelf<100>, 10> Che2HPs;
 
 	struct PFILT
 	{
@@ -1303,20 +1304,40 @@ namespace EQ
 			PaintTop(r, rrc);
 
 			// Paint the wave
-			if (LastSR > 0 && dins.size() > 0 && ShowDataMode > 0)
+			if (LastSR > 0 && dins.size() > 0  && douts.size() > 0 && ShowDataMode > 0)
 			{
-				auto& din = dins[0];
-				auto& dout = douts[0];
 				D2D1_RECT_F rc2 = {};
 				rc2.bottom = rc.bottom / 2.0f;
 				rc2.right = rc.right;
-				CComPtr<ID2D1Factory> fa;
-				r->GetFactory(&fa);
-				DrawWave(fa, r, rc2, 0, YellowBrush, 0, din.data(), (int)din.size(), ShowDataMode - 1);
 				D2D1_RECT_F rc2a = rc2;
 				rc2a.top = rc2.bottom;
 				rc2a.bottom = rc.bottom;
-				DrawWave(fa, r, rc2a, 0, SelectBrush, 0, dout.data(), (int)dout.size(), ShowDataMode - 1);
+				CComPtr<ID2D1Factory> fat;
+				r->GetFactory(&fat);
+
+				for (size_t i = 0; i < dins.size() && i < douts.size(); i++)
+				{
+					auto& din = dins[i];
+					auto& dout = douts[i];
+
+					auto rcx = rc2;
+					float he = rc2.bottom - rc2.top;
+					he /= dins.size();
+					rcx.top = rc2.top + (i * he);
+					rcx.bottom = rcx.top + he;
+					YellowBrush->SetOpacity(0.5f);
+					DrawWave(fat, r, rcx, 0, YellowBrush, YellowBrush, din.data(), (int)din.size(), ShowDataMode - 1);
+					YellowBrush->SetOpacity(1.0f);
+
+					rcx = rc2a;
+					he = rc2a.bottom - rc2a.top;
+					he /= douts.size();
+					rcx.top = rc2a.top + (i * he);
+					rcx.bottom = rcx.top + he;
+					SelectBrush->SetOpacity(0.5f);
+					DrawWave(fat, r, rcx, 0, SelectBrush, SelectBrush, dout.data(), (int)dout.size(), ShowDataMode - 1);
+					SelectBrush->SetOpacity(1.0f);
+				}
 			}
 			
 		}
